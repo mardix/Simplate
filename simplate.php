@@ -1,11 +1,11 @@
 <?php
 /**
  * Simplate
- * 
+ * -----------------------------------------------------------------------------
  * @author  Mardix
  * @since   May 1 2011
  * @desc    A simple php template engine to separate php and html content
- * @version 1.0b
+ * @version 1.01b
  * @url     http://mardix.wordpress.com/simplate/
  * @github  http://github.com/mardix/Simplate 
  * -----------------------------------------------------------------------------
@@ -57,67 +57,7 @@
  *      iterator($key,$ArrayData)   : Create an iteration
  *      setDefault($templateKey)    : To set a template as the default one to be rendered
  *      saveTo($fileName,$templateK): To save the rendered content into a file
- * 
- * 
- * @example
  *  
- * PHP 
-        $Tpl = new Simplate("./");
-
-        $Tpl->addTemplate("home","test.tpl")->setDefault()
-            ->addTemplate("test2", "test2.tpl")
-            ->set("Name","Mardix")
-            ->set("Address","7900 Boom Rd")
-            ->set("Number",7)
-            ->set("Age",29);
-
-        for($i=0;$i<10;$i++){
-            $Tpl->iterator("counto",array("Counter"=>$i,"Playlist"=>"PL-{$i}"));
-        }
-        $Tpl->render();
- * 
-TEMPLATE
-test.tpl
-THIS IS THE DEFAULT FILE
-
---------------------------------
-VARIABLE
-My name is %Name%
-
---------------------------------
-INCLUDE A FILE FROM FILE CALLED IN THE PHP
-<spl-template: test2 />
-
---------------------------------
-CONDITION STATEMENT
-<spl-if: !Number.odd() >
-    INCLUDE A FILE FROM TEMPLATE ITSELF
-    <spl-include: test3.tpl />
-
-    <spl-elseif: Number.equals(7) >
-        elseif Number %Number% is 7 now
-        
-    <spl-else>
-        else Number %Number% is not even or 4
-        But we can see waht we can do
-        Add Image here
-        Good styff
-    
-</spl-endif> 
-
-More text right here under if
-
-MAKE A LOOP
-<spl-each: counto >
-     It is so much better now to count %Counter% 
-</spl-endeach>         
-            
-<spl-each: counto limit="5" >
-    Each 3 %Counter% 
-</spl-endeach>  
-
- * 
- * 
  */
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
@@ -126,7 +66,7 @@ MAKE A LOOP
 
 Class Simplate {
     
-    public $VERSION = "1.0b";
+    public $VERSION = "1.01b";
 
     /**
      * The open and close tag of variables
