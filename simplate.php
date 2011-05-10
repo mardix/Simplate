@@ -1,14 +1,12 @@
 <?php
-
 /**
- * 
  * Simplate
  * 
  * @author  Mardix
  * @since   May 1 2011
  * @desc    A simple php template engine to separate php and html content
  * @version 1.0b
- * @url     http://fuckthissh.it/simplate/
+ * @url     http://mardix.wordpress.com/simplate/
  * @github  http://github.com/mardix/Simplate 
  * -----------------------------------------------------------------------------
  *   
