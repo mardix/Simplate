@@ -8,12 +8,16 @@
  * @since   May 1 2011
  * @desc    A simple php template engine to 
  * @version 1.0b
- * 
+ * @url     http://fuckthissh.it/simplate/
+ * @github  http://github.com/mardix/Simplate 
  * -----------------------------------------------------------------------------
  *   
  * API:
  * 
  * TEMPLATE:
+ * 
+ * Tags to show, iterate and include data
+ * 
  *      VARIABLES
  *          %Varname%     
  * 
@@ -25,20 +29,19 @@
  * 
  * 
  *      ITERATION
- *          <spl-each: eachname>
+ *          <spl-each: eachname >
  *          
  *          </spl-endeach>
  * 
  * 
  *      INCLUDE
- *          Include a file directly from template
+ *          Include a file directly in a template
  *          <spl-include: file.tpl />
  * 
  *          Include a template defined from php
- *          <spl-template: templatename
+ *          <spl-template: templateKey />
  *      
  *      ATTRIBUTES
- *      
  *          Each attributes are key=value
  *          <spl-include: ../../file.tpl absolute='true' />
  * 
@@ -46,6 +49,9 @@
  *          </spl-endeach>
  * 
  * PHP:
+ * 
+ * Methods to add, iterate, and include data
+ * 
  *      setRootDir($dirPath)        : set the root dir
  *      set($key,$value)            : set variables
  *      addTemplate($key,$filename) : add a template
@@ -53,6 +59,7 @@
  *      iterator($key,$ArrayData)   : Create an iteration
  *      setDefault($templateKey)    : To set a template as the default one to be rendered
  *      saveTo($fileName,$templateK): To save the rendered content into a file
+ * 
  * 
  * @example
  *  
@@ -71,6 +78,7 @@
         }
         $Tpl->render();
  * 
+TEMPLATE
 test.tpl
 THIS IS THE DEFAULT FILE
 
@@ -515,9 +523,6 @@ Class Simplate {
     }
 
 
-    
-
-
 
      /**
      * Parse template and start the replacement
@@ -539,7 +544,7 @@ Class Simplate {
          * INCLUDES
          * Format: <spl-include: filename.tpl options=absolute  /> 
          * Will include the filename.tpl in the current file. Can also add other include inside of includes
-         * @TODO Add an options=absolute,x,y,z
+         * @TODO Add attribute absolute='true'
          */
         $matches = array();
         if (preg_match_all ( '/<spl\-include:\s+([\{\}a-zA-Z0-9_\.\-\/]+)\s*\/>/i',$template,$matches)) {
