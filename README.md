@@ -6,7 +6,7 @@ SIMPLATE
 
 Simplate (Simple Template) is a simple PHP template engine that allows the separation of PHP code and HTML.
 
-Simplate consists of only class that contains the necessary methods to add templates, assign variables and iterate over an array or list of object.
+Simplate consists of only one class that contains the necessary methods to add templates, assign variables and iterate over an array or list of object.
 
 I created Simplate for my own project, but decided to share with everyone.
 
