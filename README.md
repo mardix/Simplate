@@ -17,7 +17,7 @@ Why not? Well this one is smaller comparing to what's out there and it gets the 
 
 ##### Twitter Mardix
 
-Follow me on twitter: [http://twitter.com/mardix](http://twitter.com/mardix), or check out my blog: [http://mardix.wordpress.com/](http://mardix.wordpress.com/) for the latest update on Simplate.
+Follow me on twitter: [http://twitter.com/mardix](http://twitter.com/mardix), or check out my blog: [http://mardix.wordpress.com/simplate](http://mardix.wordpress.com/simplate) for the latest update on Simplate.
 
 Also browse my repo for some more libraries that you may want to use.
 
