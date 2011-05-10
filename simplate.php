@@ -6,7 +6,7 @@
  * 
  * @author  Mardix
  * @since   May 1 2011
- * @desc    A simple php template engine to 
+ * @desc    A simple php template engine to separate php and html content
  * @version 1.0b
  * @url     http://fuckthissh.it/simplate/
  * @github  http://github.com/mardix/Simplate 
