@@ -2,12 +2,13 @@
 /**
  * Simplate
  * -----------------------------------------------------------------------------
- * @author  Mardix
+ * @author  Mardix [http://twitter.com/mardix] (Use twitter to contact me or get updates)
  * @since   May 1 2011
  * @desc    A simple php template engine to separate php and html content
  * @version 1.01b
  * @url     http://mardix.wordpress.com/simplate/
  * @github  http://github.com/mardix/Simplate 
+ * 
  * -----------------------------------------------------------------------------
  *   
  * API:
