@@ -3,7 +3,7 @@
  * This is an example file showing how easy Simplate is
  */
 
-include("../simplate.php");
+include("../Simplate.php");
 
 $Tpl = new Simplate("./");
 
