@@ -6,8 +6,8 @@
  * @author  Mardix [http://twitter.com/mardix] (Use twitter to contact me or get updates)
  * @since   May 1 2011
  * @desc    A simple php template engine to separate php and html content
- * @version 1.02b
- * @link     http://mardix.wordpress.com/simplate/
+ * @version 1.021b
+ * @link    http://mardix.wordpress.com/simplate/
  * @github  http://github.com/mardix/Simplate 
  * @license MIT
  * -----------------------------------------------------------------------------
@@ -68,8 +68,14 @@
 
 Class Simplate {
     
-    public $VERSION = "1.02b";
+    /**
+     * The template system's name and version
+     * @var String
+     */
+    public static $NAME = "Simplate";
+    public static $VERSION = "1.021b";
 
+    
     /**
      * The open and close tag of variables
      * @var type 
