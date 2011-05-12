@@ -5,7 +5,7 @@
  * @author  Mardix [http://twitter.com/mardix] (Use twitter to contact me or get updates)
  * @since   May 1 2011
  * @desc    A simple php template engine to separate php and html content
- * @version 1.01b
+ * @version 1.02b
  * @url     http://mardix.wordpress.com/simplate/
  * @github  http://github.com/mardix/Simplate 
  * 
@@ -67,7 +67,7 @@
 
 Class Simplate {
     
-    public $VERSION = "1.01b";
+    public $VERSION = "1.02b";
 
     /**
      * The open and close tag of variables
@@ -222,8 +222,12 @@ Class Simplate {
      */
     public function addTemplate($key,$file,$absolutePath=false){
 
-        $this->templateFiles[$key] = $file;
-
+        $this->templateFiles[$key] = array(
+            "src"=>$file,
+            "absolutePath"=>$absolutePath,
+            "mustExist"=>true
+        );
+        
         $this->lastTplKey = $key;
         
         // by default we'll set the first file as the main template. But can be changed later
@@ -356,20 +360,22 @@ Class Simplate {
     /**
      * Get the template's content
      * @param string $filename - The filename relative to root. If $absolutePath is true, it will get it from path
-     * @param bool $mustExists - If file must exits for content, if it doesnt exist it will throw an excption
+     * @param bool $mustExist - If file must exits for content, if it doesnt exist it will throw an excption
      * @param bool $absolutePath - Specified if we get the file from absolutePath, or relative to root
      * @return string 
      */
-    private function getTemplate ($filename,$mustExists=true,$absolutePath=false){
+    private function getTemplate ($filename,$mustExist=true,$absolutePath=false){
 
         $filename = ($absolutePath==true) ? $filename : $this->rootDir.$filename;
 
-        if($mustExists && !file_exists($filename))
+        if($mustExist && !file_exists($filename))
             throw new Exception("File '{$filename}' doesn't exist");
 
         if(file_exists($filename))
           return 
-            $this->defineIterations(file_get_contents($filename));      
+            $this->defineIterations(file_get_contents($filename));  
+        else
+            return "";
     } 
 
 
@@ -395,20 +401,12 @@ Class Simplate {
 
                 $name = $matches[1][$i];
 
-                /**
-                 * Create attributes
-                 */
-                preg_match_all("/(\w+)\s*=\s*[\"'](.*?)[\"']/",$matches[2][$i],$attributes_);
-                $attributes = (count($attributes_[1]) && count($attributes_[1])) ? array_combine($attributes_[1],$attributes_[2]) : array();
-
-                
                 if(!isset($this->definedIterations[$name]))
                         $this->definedIterations[$name] = array();
                 
-                
                 $this->definedIterations[$name][] = array(
                       "replacementKey"=>$replacementKey,
-                      "attributes"=>$attributes,
+                      "attributes"=>$this->getAttributes($matches[2][$i]),
                       "innerContent"=>$matches[3][$i],
                 );
 
@@ -420,6 +418,18 @@ Class Simplate {
     }
     
     
+    /**
+     * Get the attributes out of a string, ie: absolute="true"
+     * @param type $tagString
+     * @return Array 
+     */
+    private function getAttributes($tagString){
+        
+        preg_match_all("/(\w+)\s*=\s*[\"'](.*?)[\"']/",$tagString,$attributes_);
+        
+        return 
+            (count($attributes_[1]) && count($attributes_[1])) ? array_combine($attributes_[1],$attributes_[2]) : array();
+    }
     
     
     /**
@@ -481,20 +491,24 @@ Class Simplate {
          * Recursively include file in the template from the template
          * 
          * INCLUDES
-         * Format: <spl-include: filename.tpl options=absolute  /> 
+         * Format: <spl-include: filename.tpl absolute="true"  /> 
          * Will include the filename.tpl in the current file. Can also add other include inside of includes
-         * @TODO Add attribute absolute='true'
+         * @todo The regexp to get the filename can't get file with "../.."
          */
         $matches = array();
-        if (preg_match_all ( '/<spl\-include:\s+([\{\}a-zA-Z0-9_\.\-\/]+)\s*\/>/i',$template,$matches)) {
+        if (preg_match_all ( '/<spl\-include:\s+([\{\}a-zA-Z0-9_\.\-\/]+)\s*(.*?)\s*\/>/i',$template,$matches)) {      
             
             $incFile = $matches[1][0];
             
             if(file_exists($incFile)){
                 
                 if(!isset($this->inlineTemplates[$incFile]))
+                    
+                    $attributes = $this->getAttributes($matches[2][0]);
                         
-                    $this->inlineTemplates[$incFile] = $this->getTemplate($incFile,false,false);
+                    $absolutePath = (isset($attributes["absolute"]) && preg_match("/^true|yes|y|1$/i",$attributes["absolute"])) ? true : false;
+                
+                    $this->inlineTemplates[$incFile] = $this->getTemplate($incFile,false,$absolutePath);
                 
                 $tpl = $this->inlineTemplates[$incFile];
                 
@@ -618,7 +632,7 @@ Class Simplate {
          * Parse all templates
          */
         foreach($this->templateFiles as $key=>$file){
-            $this->templates[$key] = $this->parseTemplate($this->getTemplate($file));
+            $this->templates[$key] = $this->parseTemplate($this->getTemplate($file["src"],$file["mustExist"],$file["absolutePath"]));
         }
         
         /**
