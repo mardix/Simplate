@@ -27,4 +27,7 @@ for($i=0;$i<10;$i++){
 }
 
 
-$Tpl->render();
+/**
+ * Print the rendered data
+ */
+ print $Tpl->render();
