@@ -1,21 +1,23 @@
 <?php
-//------------------------------------------------------------------------------
 /**
  * -----------------------------------------------------------------------------
  * Zend_View_Simplate
  * -----------------------------------------------------------------------------
- * @author  Mardix [http://twitter.com/mardix] (Use twitter to contact me or get updates)
- * @since   May 1 2011
- * @desc    A simple php template engine to separate php and html content
- * @version 1.021b
- * @link    http://mardix.wordpress.com/simplate/
- * @github  http://github.com/mardix/Simplate 
- * @license MIT
+ * @author      Mardix [http://twitter.com/mardix] (Use twitter to contact me or get updates)
+ * @desc        A simple php template engine to separate php and html content
+ * @link        http://mardix.wordpress.com/simplate/
+ * @github      http://github.com/mardix/Simplate 
+ * @license     MIT
+ * @copyright   Copyright (c) 2011 - Mardix - http://twitter.com/mardix
+ * @since       May 1 2011
+ * 
+ * @version     1.03
+ * @last update May 15 2011
  * -----------------------------------------------------------------------------
  * 
- * @desc    Zend Framework implementation of Simplate. 
- *          This file contains 2 classes: Zend_View_Simplate and Simplate 
- * @since   May 12, 2011
+ * @desc        Zend Framework implementation of Simplate. 
+ *              This file contains 2 classes: Zend_View_Simplate and Simplate 
+ * @since       May 15, 2011
  */
 
 Class Zend_View_Simplate extends Simplate implements Zend_View_Interface{
@@ -81,7 +83,8 @@ Class Zend_View_Simplate extends Simplate implements Zend_View_Interface{
      * @return the html output.
      */
     public function render($name){
-        $this->render($name);
+        return 
+            $this->render($name);
     }
     
     /**
@@ -99,17 +102,23 @@ Class Zend_View_Simplate extends Simplate implements Zend_View_Interface{
 }
 
 //------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+
+
 /**
  * -----------------------------------------------------------------------------
  * Simplate
  * -----------------------------------------------------------------------------
- * @author  Mardix [http://twitter.com/mardix] (Use twitter to contact me or get updates)
- * @since   May 1 2011
- * @desc    A simple php template engine to separate php and html content
- * @version 1.021b
- * @link    http://mardix.wordpress.com/simplate/
- * @github  http://github.com/mardix/Simplate 
- * @license MIT
+ * @author      Mardix [http://twitter.com/mardix] (Use twitter to contact me or get updates)
+ * @desc        A simple php template engine to separate php and html content
+ * @link        http://mardix.wordpress.com/simplate/
+ * @github      http://github.com/mardix/Simplate 
+ * @license     MIT
+ * @copyright   Copyright (c) 2011 - Mardix - http://twitter.com/mardix
+ * @since       May 1 2011
+ * 
+ * @version     1.03
+ * @last update May 15 2011
  * -----------------------------------------------------------------------------
  *   
  * API:
@@ -173,17 +182,9 @@ Class Simplate {
      * @var String
      */
     public static $NAME = "Simplate";
-    public static $VERSION = "1.021b";
+    public static $VERSION = "1.03";
 
-    
-    /**
-     * The open and close tag of variables
-     * @var type 
-     */
-    protected $OPENVAR = "%";
-    protected $CLOSEVAR = "%";
-    
-
+   
     /**
      * The directory holding all the templates
      * @var String
@@ -194,7 +195,7 @@ Class Simplate {
      * Hold all the variables set
      * @var Array
      */
-    private $setVars = array();
+    private $Vars = array();
 
     
     
@@ -266,6 +267,7 @@ Class Simplate {
      * @param type $pathToTemplates 
      */
     public function __construct ($pathToTemplates = ""){
+        
         if($pathToTemplates)
                 $this->setRootDir($pathToTemplates);
 
@@ -278,7 +280,15 @@ Class Simplate {
      * Destructor
      */
     public function __destruct(){
-        unset($this->setVars,$this->rootDir,$this->iterators,$this->definedIterations,$this->templates,$this->inlineTemplates,$this->templateFiles);
+        
+        unset(  $this->Vars,
+                $this->rootDir,
+                $this->iterators,
+                $this->definedIterations,
+                $this->templates,
+                $this->inlineTemplates,
+                $this->templateFiles
+            );
     }
 
     
@@ -312,7 +322,7 @@ Class Simplate {
         }
         else{
             $kName = ($formatVar) ? $this->formatVar($keys) : $keys;
-            $this->setVars[$kName] = $value;
+            $this->Vars[$kName] = $value;
         }
 
         return $this;
@@ -346,7 +356,7 @@ Class Simplate {
     }
 
     /**
-     * Set the default template to be rendered if no template key is provided
+     * Set the default template to be rendered. if no template key is provided, the first file that was added with addTemplate will be set a default
      * @param type $templateKey
      * @return Simplate 
      */
@@ -361,11 +371,12 @@ Class Simplate {
     }
     
     /**
-     * Render the template content to screen
-     * @param String
+     * Parse the templates and render it
+     * @param String - The key of the template to render
+     * @return String - The content to be rendered 
      */
     public function render($templateKey=""){
-        print
+        return
             $this->getContent($templateKey);
     }
    
@@ -527,8 +538,8 @@ Class Simplate {
     
     /**
      * Get the attributes out of a string, ie: absolute="true"
-     * @param type $tagString
-     * @return Array 
+     * @param string $tagString
+     * @return Array - containg key/value of tag/value -> array("absolute"=>true)
      */
     private function getAttributes($tagString){
         
@@ -627,14 +638,14 @@ Class Simplate {
          * Replacement everywhere
          */
         return 
-            str_replace(array_keys($this->setVars),array_values($this->setVars),$template);
+            str_replace(array_keys($this->Vars),array_values($this->Vars),$template);
     } 
 
         
         
     /**
      * To parse  condition statements in the template
-     * @param type $template
+     * @param string $template - The template content
      * @return string 
      * 
      * @example
@@ -776,28 +787,27 @@ Class Simplate {
     
     
     /**
-     * To format variable with the proper tags 
-     * @param type $varName
+     * To format variable with the proper opening and cclosed tags
+     * @param string $varName - The variable name
      * @return string 
      */
     protected function formatVar($varName){
-        return 
-            $this->OPENVAR.$varName.$this->CLOSEVAR;
+        return "%{$varName}%";
     }
 
     
     
     /**
      * Get a variable's name
-     * @param string $key
-     * @return mixed 
+     * @param string $key - The variable key
+     * @return mixed  
      */
     protected function getVar($key){
         
         $key = $this->formatVar($key);
 
         return 
-            $this->setVars[$key];
+            $this->Vars[$key];
     }
                 
                 
