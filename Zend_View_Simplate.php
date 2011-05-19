@@ -11,13 +11,12 @@
  * @copyright   Copyright (c) 2011 - Mardix - http://twitter.com/mardix
  * @since       May 1 2011
  * 
- * @version     1.03
- * @last update May 15 2011
+ * @version     1.04
  * -----------------------------------------------------------------------------
  * 
  * @desc        Zend Framework implementation of Simplate. 
  *              This file contains 2 classes: Zend_View_Simplate and Simplate 
- * @since       May 15, 2011
+ * @since       May 18, 2011
  */
 
 Class Zend_View_Simplate extends Simplate implements Zend_View_Interface{
@@ -117,8 +116,8 @@ Class Zend_View_Simplate extends Simplate implements Zend_View_Interface{
  * @copyright   Copyright (c) 2011 - Mardix - http://twitter.com/mardix
  * @since       May 1 2011
  * 
- * @version     1.03
- * @last update May 15 2011
+ * @version     1.04
+ * @last update May 18 2011
  * -----------------------------------------------------------------------------
  *   
  * API:
@@ -168,12 +167,12 @@ Class Zend_View_Simplate extends Simplate implements Zend_View_Interface{
  *      iterator($key,$ArrayData)   : Create an iteration
  *      setDefault($templateKey)    : To set a template as the default one to be rendered
  *      saveTo($fileName,$templateK): To save the rendered content into a file
+ *      debug()                     : To show all unassigned variables. By default unassigned vars will be removed 
  *  
  */
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-
 
 Class Simplate {
     
@@ -182,7 +181,7 @@ Class Simplate {
      * @var String
      */
     public static $NAME = "Simplate";
-    public static $VERSION = "1.03";
+    public static $VERSION = "1.04";
 
    
     /**
@@ -197,6 +196,11 @@ Class Simplate {
      */
     private $Vars = array();
 
+    /**
+     * To remove all unassigned variables and loop variables before rendering
+     * @var Bool
+     */
+    private $parseSafe = true;
     
     
     /**
@@ -315,14 +319,22 @@ Class Simplate {
     * @return Simplate
     */
     public function set($keys, $value="",$formatVar=true){
+        
         if(is_array($keys)){
+            
             foreach($keys as $tplK=>$tplV){
+                
                 $this->set($tplK,$tplV);
+                
             }
         }
+        
         else{
+            
             $kName = ($formatVar) ? $this->formatVar($keys) : $keys;
+            
             $this->Vars[$kName] = $value;
+            
         }
 
         return $this;
@@ -452,6 +464,18 @@ Class Simplate {
         return $this;
     }
 
+    
+    /**
+     * By default, all unassigned variables will be removed. Calling this method will display the unassigned variables upon rendering
+     * @return Simplate 
+     */
+    public function debug(){
+        
+        $this->parseSafe = false;
+        
+        return $this;
+        
+    }
 //------------------------------------------------------------------------------    
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
@@ -492,6 +516,7 @@ Class Simplate {
         if(file_exists($filename))
           return 
             $this->defineIterations(file_get_contents($filename));  
+        
         else
             return "";
     } 
@@ -516,6 +541,16 @@ Class Simplate {
                 $this->definedIterationsCount++;
 
                 $replacementKey = "__ITERATORREPLACEMENTHOLDER_{$this->definedIterationsCount}__";
+
+                /**
+                 * Save the replacement keys to remove them, if any, after parsing
+                 */
+                if(!isset($this->definedIterations["_replacementKeys"]))
+                        $this->definedIterations["_replacementKeys"] = array();
+                
+                $this->definedIterations["_replacementKeys"][] = $replacementKey;
+                
+                
 
                 $name = $matches[1][$i];
 
@@ -761,9 +796,21 @@ Class Simplate {
         $iVal = array_values($iteratorsRep);
 
         foreach($this->templates as $tK=>$tV){
+            
             $this->templates[$tK] = str_replace($iKey,$iVal,$tV);
+            
+            /**
+             * Remove unassigned variable
+             */
+            if($this->parseSafe){
+                
+                $this->templates[$tK] = preg_replace("/%\w+%/i","",$this->templates[$tK]); 
+                
+                $this->templates[$tK] = str_replace(array_values($this->definedIterations["_replacementKeys"]),array(""),$this->templates[$tK]);
+            }
+            
         }
-    
+
         /** 
          * Last call for alcohol before page is rendered
          * Include template page in page
