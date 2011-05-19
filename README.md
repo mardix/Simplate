@@ -41,6 +41,7 @@ Peace!
 
 >   **saveTo()**: *To save the rendered content into a file*
 
+>   **debug()** : *To show all unassigned variables. By default unassigned vars will be removed*
 
 ---
 
