@@ -11,8 +11,8 @@
  * @copyright   Copyright (c) 2011 - Mardix - http://twitter.com/mardix
  * @since       May 1 2011
  * 
- * @version     1.04
- * @last update May 18 2011
+ * @version     1.05
+ * @last update May 22 2011
  * -----------------------------------------------------------------------------
  *   
  * API:
@@ -76,7 +76,7 @@ Class Simplate {
      * @var String
      */
     public static $NAME = "Simplate";
-    public static $VERSION = "1.04";
+    public static $VERSION = "1.05";
 
    
     /**
@@ -547,16 +547,14 @@ Class Simplate {
         if (preg_match_all ( '/<spl\-include:\s+([\{\}a-zA-Z0-9_\.\-\/]+)\s*(.*?)\s*\/>/i',$template,$matches)) {      
             
             $incFile = $matches[1][0];
-            
-            if(file_exists($incFile)){
-                
-                if(!isset($this->inlineTemplates[$incFile]))
+
+             if(!isset($this->inlineTemplates[$incFile])){
                     
-                    $attributes = $this->getAttributes($matches[2][0]);
-                        
-                    $absolutePath = (isset($attributes["absolute"]) && preg_match("/^true|yes|y|1$/i",$attributes["absolute"])) ? true : false;
-                
-                    $this->inlineTemplates[$incFile] = $this->getTemplate($incFile,false,$absolutePath);
+                $attributes = $this->getAttributes($matches[2][0]);
+
+                $absolutePath = (isset($attributes["absolute"]) && preg_match("/^true|yes|y|1$/i",$attributes["absolute"])) ? true : false;
+
+                $this->inlineTemplates[$incFile] = $this->getTemplate($incFile,false,$absolutePath);
                 
                 $tpl = $this->inlineTemplates[$incFile];
                 
@@ -650,7 +648,7 @@ Class Simplate {
                 }
 
                 /**
-                 * <SPL-ENDIF>
+                 * </SPL-ENDIF>
                  */
                 else if (preg_match("!</spl-endif\s*>!i",$line) && $condStmt ["defined"][$level]) {
                     $condStmt ["defined"][$level]  = false;
@@ -701,6 +699,7 @@ Class Simplate {
                 
                 $this->templates[$tK] = preg_replace("/%\w+%/i","",$this->templates[$tK]); 
                 
+                if(count($this->definedIterations))
                 $this->templates[$tK] = str_replace(array_values($this->definedIterations["_replacementKeys"]),array(""),$this->templates[$tK]);
             }
             
