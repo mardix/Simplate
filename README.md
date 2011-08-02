@@ -1,268 +1,282 @@
-SIMPLATE
-========
----
-
-##### What is Simplate?
-
-Simplate (Simple Template) is a simple PHP template engine that allows the separation of PHP code and HTML.
-
-Simplate consists of only one class that contains the necessary methods to add templates, assign variables and iterate over an array or list of object.
-
-I created Simplate for my own project, but decided to share with everyone.
-
-
-##### Why another PHP template engine?
-
-Why not? Well this one is smaller comparing to what's out there and it gets the job done right. It is not bloated and contains some useful methods and tricks. And above all, no PHP will be found in your template. 
-
-##### Twitter Mardix
-
-Follow me on twitter: [http://twitter.com/mardix](http://twitter.com/mardix), or check out my blog: [http://mardix.wordpress.com/simplate](http://mardix.wordpress.com/simplate) for the latest update on Simplate.
-
-Also browse my repo for some more libraries that you may want to use.
-
-Peace!
-
-
+#{@Simplate}
 
 ---
 
-###Public methods:###
 
->   **set()** : *set variables*
+### What is Simplate?
 
->   **addTemplate()** : *add a template*
+Simplate (Simple Template) is a simple PHP template engine to seprate application logic and content from its presentation.
 
->   **render()**  : *To render the template*
 
->   **iterator()**   : *Create an iteration*
 
->   **setDefault()**  : *To set a template as the default one to be rendered*
+#### Why another PHP template engine?
 
->   **saveTo()**: *To save the rendered content into a file*
+Well, I created Simplate for my own project, but decided to share with everyone. 
 
->   **debug()** : *To show all unassigned variables. By default unassigned vars will be removed*
+I was also tired of all those bloated PHP template system, with steep learning curve that create another language on top of PHP. Really?!
 
----
+So this one is smaller, it consists of one PHP file. It is not bloated and contains some useful methods and tricks. And above all, it's damn simple.
 
-###PHP Methods and Template Tags###
 
-#### Set() and `%VariableName%` : To assign variable
+#### And who created it?
+Me. Mardix. You can follow me  [@mardix](http://twitter.com/mardix), or check out my github: [mardix.github.com](http://mardix.github.com/) to check out some of my other code that you may want to fork.
 
-> `Simplate::set($key,$value)` 
-
-> `$Tpl->set("Location","Charlotte, NC");`
-
-> `$Tpl->set(array("Name"=>"Mardix","Drink"=>"Grey Goose"));`
-
-> In the template to assign variables Simplate uses the **%** sign
-
-> `My name is %Name%, I live in %Location% and I like to drink %Drink%`
+So Holla!
 
 ---
 
-#### AddTemplate() and `<spl-template: {templateKey} />`  to insert a template
+## {@Simplate for Developers}
+
+Simplate use PHP 5.3 or later, and can be extended for your needs. But by default it comes with everything you need.
+
+On the PHP side, developer can assign variables, include templates, create loops, create embeded loops, create filters etc...
 
 
-> `Simplate::addTemplate($key,$filename)`
+#### Public methods
 
-> `$Tpl->addTemplate("home","home.tpl")`
+>***setDir($dirPath)*** : to set the root dir
 
->     ->addTemplate("page2","page2.tpl");`
+>***assign($key,$value)*** : to assign variables. 
 
+>***assignJSON($key,$Arrayvalue)*** : to assign and array that will be passed as JSON
 
-home.tpl
+>***addFile($tplName,$filename)***: To add a template file that will be include with the tag `<spl-include src="@tplName" />`
 
-> `This is some HTML`
+>***addTemplate($tplName,$Content)***: to add a string or content as template that will be included with the tag `<spl-include src="@tplName" />`
 
-> `<spl-template: page2 />`
+>***render($tplName)***: to render the template as string. Use print() to print the template content
 
-> `Other HTML Code`
+>***each($name,$ArrayData)***: to create a loop that can be included with the tag `<spl-each eachName > </spl-each>`
 
+>***stripComments(bool)***: to strip all HTML comments from the page. You can also use `<spl-macro cmd="stripComments" />` in the template
 
----
+>***saveTo($tplName)***: to save the content of the template to a file
 
-#### Iterator() and `<spl-each: {$key} ></spl-endeach>` to iterate over list of data
+>***allowMacros(bool)***: To allow macros in the template, like `<spl-macro $macro="$value" />`
 
-> `Simplate::iterator($key,$ArrayData)`
+>***removeTemplate($tplName)***: to remove a template by its name when it was set
 
-> `for($i=0;$i<10;$i++){`
+>***clearVars()***: to reset all vars
 
->> `$Tpl->iterator("playlist",array("Artist"=>"Artist #{$i}","Album"=>"My new album #{$i}"));`
+>***clearAll()*** : reset everything
 
-> `}`
+#### Advanced
 
-home.tpl
+#### Filters
 
-> `This is some HTML`
+Filters are custom methods to be applied on the variables on the template side.
 
-> `Iterations start below`
+`{@VarName}` is a normal variable. Now in `{@VarName.toUpper()}` `.toUpper()` is a filter. 
 
->  `<spl-each: playlist >`
+Filters are also chainable `{@VarName.replace(a,b).toUpper()}`
 
->> `%Artist% has album titled %Album%`
+#### Create your own filters
 
-> `</spl-endeach>`
+You can create your own filter by using the static method `Simplate::setFilter`
 
-> `Other HTML Code`
-
-
----
-### Other Methods
-
-#### __Construct() to init and set the root dir of the template
-
-> `$Tpl = new Simplate("/templates");`
+Let's create a custom filter that will calculate the length of a string
 
 
-#### setRootDir()
+`Simplate::setFilter("strlen",function($var){
 
-> `$Tpl->setRootDir("/templates");`
+        return strlen($var);
+
+});`
+
+Now in your template you can use it like this:
+
+`{@VarName.strlen()}`
+
+Now for a full example, please go the example folder to see more examples
+
+So {@Simplate}!
 
 
 ---
 
-#### Render(): To render the page
+## {@Simplate for Designers}
 
-> `Simplate::render()`
+Simplate was designed with designers in mind. Therefor it has a low learning curve. It uses HTML-like syntax
+to display data and execute piece of code. And it's easy with your favorite HTML editor
 
-> `$Tpl->render()` 
+### Variables {@VarName}
 
+In Simplate, variables are marked with {@ and }, like `{@VarName}`
 
-or
+Because I'm also a designer, I know how it is to have the same syntax in all of your codes. Therefor, I made sure that all variable become pseudo-object
+ , something like javascript, where you can apply filters on them, and even chain all them like so
 
-> `$Tpl->render("home")`
+` {@VarName.replace(.com,.net).toUpper().truncate(15)} `
 
-Will render the templatekey->home
+So what will this do? Pretty simple, you read it and you got it. It will replace .com with .net, then uppercase it, then truncate it to 15 characters
 
+So {@Simplate}! 
 
----
 
-#### SaveTo(): to save the rendered content to a file
+#### Built-in filters
 
-> `$Tpl->saveTo("/sources/mysite.html");`
+Simplate comes with some built-in filters to apply on variables. PHP developers can set their own filter by using the static method Simplate::setFilter
 
+>***.toUpper()*** : to upper case 
 
----
+>***.toLower()*** : to lower case 
 
+>***.capitalize()*** : to capitalize
 
-#### SetDefault(): to set a template as the default page to be rendered
+>***.truncate(start,end)*** : to truncate from start to end. If only the start point is available, it will start at 0 and end at start
 
-> `$Tpl->setDefault("home");`
+>***.length()*** : get the length of the variable
 
-Alternatively, right after addTemplate() is called, call setDefault() with no argument to set the last page as the default
+>***.toNumber(decimal)*** : to format the string to a number with decimal.
 
-> `$Tpl->addTemplate("page3","page3.tpl")->setDefault();`
+>***.replace(pattern,replacement)*** : to replace pattern with replacement
 
+>***.trim()*** : to remove left and right blank space
 
----
+>***.escapeHTML()*** : to escape the HTML
 
-### Other Template Tags ###
+>***.stripTags()*** : to strip all HTML or PHP tags
 
-Simplate uses tags in the HTML template to assign variables. 
+>***.toDate(format)***: to format a date. Use PHP letter to format the date
 
-All tags use the opening Simplate tag: **`<spl-{name}: >`**
-    
----
 
 
-#### `<spl-if: {condition} > </spl-endif>` : Conditional statement
+### Markup Tags `<spl-tag />`
 
-> **`<spl-if:`** Number.odd() >`
+ Simplate allow the use of the Simplate markup  tags `<spl-tag>` to do conditional statements, loops, include, macros and more.
 
->> This part will be displayed if the variable named Number is odd
+To keep Simplate markup tags consisitent with HTML, Simplate use opening and close tags like the following
 
->> **`<spl-elseif`**: Number.gte(4) >`
+`<spl-tag> </spl-tag>`  or `<spl-tag />`
 
->>> This part will be shown instead if Number is greater than 4
 
->> **`<spl-else>`**
+### Include `<spl-include src=""/>`
 
->>> This part will be displayed only if none of if and else if is true
+`<spl-include src=""/>`  allow to include a template in the current template file, where `src` is the source of the template.
 
-> **`</spl-endif>`**
+The source can be a file itself with extension or the name of the template when it was created on the PHP  side. 
 
-##### Pre-made methods for conditional satetements
+ > ` <spl-include src="myTemplate.tpl" /> ` : this will include the template file myTemplate.tpl in the current template. By default, it's including the template file from the directory that was set in PHP with Simplate::setDir()
 
-Simplate come with a built-in methods to validate conditions
+> `<spl-include src="../myownPath/myTemplate.tpl" absolute="true"/>`: this will include the template file myTemplate.tpl in the current template. But this time it will call the file from another location. This is done by settinge absolute to true. 
 
-The format is `{VariableName}.{MethodName}({Value})`
+> `<spl-include src="@ContactPage" />` : To include a file that was loaded from the PHP with `Simplate::addFile("ContactPage","contact.tpl")`. In src, you add `@TemplateName`
 
-i.e: `Number.odd()` or `Number.gte(4)`
 
-List of the built-in methods
+### Conditional Statement `<spl-[if|elseif|else]  VarName.test() >` `</spl-if>`
 
->>> `X.is(value)         : X == value`
+Conditional statement allow to make some test before executing some piece of code. It can be use to include, show parts of data
 
->>> `X.equals(value)     : X == value`
+Let's say we assign a variable called Number as 7 -> `Simplate::assign("Number",7);`
 
->>> `X.not(value)        : X != value`
 
->>> `X.empty()           : X == ""`
+`<spl-if Number.odd() >`
 
->>> `X.match(value)      : X contains value`
+> `Will execute this part if Number is an odd number`
 
->>> `X.even()            : X is even ?`
+>`<spl-elseif Number.is(4) >`
 
->>> `X.odd()             : X is odd ?`
+>`Will execute if Number == 4`
 
->>> `X.gt(value)         : X > value`
+>`<spl-else>`
 
->>> `X.gte(value)        : X >= value`
+>`All failed show this piece`
 
->>> `X.lt(value)         : X < value`
+`</spl-if>`
 
->>> `X.lte(value)        : X <= value`
 
-##### Negation
+#### Built-in conditional test
 
-> To negate the condition, you can add **!** before the variableName
+The built in condition return true when test pass.
 
->> `!X.even() ` 
+>***.is(number|string)*** or ***equals(number|string)*** : To test the equality
 
----
+>***.not(number|string)*** : inequality
 
-#### `<spl-include: file.tpl />` to include a file directly in the template without calling it from PHP
+>***.null()*** or ***empty()*** : Test if null
 
-home.tpl
+>***.startsWith(val)*** : if starts with val
 
-> `This is some HTML`
+>***.endsWith(val)*** : if ends with val
 
-> `<spl-include: page2.tpl />`
+>***.match(val)*** : if contains val
 
-> `Other HTML Code`
+>***.even()*** : if a number is even
 
+>***.odd()*** : if a number is odd
 
-Upon parsing home.tpl, 'mypage.tpl' will be included. The included template can also include other templates, which can include other templates and so on. 
+>***.gt(number)*** if it's greater than number
 
-##### Difference between `<spl-include: page2.tpl />` and `<spl-template: page2 />` 
+>***.gte(number)*** if it's greater than or equals number
 
-`<spl-include: page2.tpl />` : include the file *page2.tpl* while the parent is being parsed
+>***.lt(number)*** if it's lesser than number
 
-`<spl-template: page2 />` : is already parsed by PHP and the content is just included there
+>***.lte(number)*** if it's lesser than or equals number
 
----
 
-### Attributes in Tags
+But you can force a conditional statement to be negative by adding ! in front of it. 
 
-Simplate allow some attributes in some tags. Attributes allow to modify the rendering behavior, such as a *limit* and *absolute path* for an included file.
+Let's say the Number is 7, so it's an odd number. We can negate a test like the following
 
-#### LIMIT
+>`<spl-if !Number.odd() >`
 
-Limit is implemented in the iterations to reduce the data to be displayed
+Which means, test if Number is not odd. 
 
-home.tpl
 
->  `<spl-each: playlist limit="5" >`
+### Each loop `<spl-each eachName >`
 
->> `%Artist% has album titled %Album%`
+It allows to loop over an array set on the PHP side with `Simplate::each("eachName",Array)`
 
-> `</spl-endeach>`
+`<spl-each eachName>`
 
-This iteration will display only 5 entries
+>`{@Name}` 
 
+`</spl-each>`
 
-#### Absolute
 
-By default when `<spl-include: page2.tpl />` the template will try to look in the setRootDir directory for such file, but when Absolute is implemented in `<spl-include: page2.tpl  absolute="true" />` it will force it to get the file from the src.
+### InEach loop `<spl-ineach ineachName >`
+
+It allows to loop over an array set on the PHP side with `Simplate::each("eachName",Array)`, where there is a key that was itself and each with the key name ineachName
+
+`<spl-each eachName>`
+
+>`{@Name}` 
+
+
+>`<spl-each ineachName>`
+
+>>`{@Name}` 
+
+>`</spl-ineach>`
+
+
+`</spl-each>`
+
+@TODO: more doc
+
+
+#### Macros
+
+Macros are instruction from the template that will execute some commands on the PHP such as show errors, return data as JSON
+
+@TODO: more doc
+
+
+Please refer to the example directory for examples
+
+
+
+ [@mardix](http://twitter.com/mardix)
+
+
+
+
+
+
+
+
+
+
+
+
 
