@@ -26,8 +26,8 @@
  * @since       May 1 2011
  * @uses        PHP 5.3 or later
  * 
- * @version     1.1
- * @LastUpdate  August 2nd 2011
+ * @version     1.1.1
+ * @LastUpdate  August 3rd 2011
  * 
  * @NowPlaying  "I can't be your friend" - D.H.T
  * 
@@ -172,7 +172,7 @@ Class Simplate {
      * @var String
      */
     public static $NAME = "Simplate";
-    public static $VERSION = "1.1";
+    public static $VERSION = "1.1.1";
 
    
     /**
@@ -834,8 +834,8 @@ Class Simplate {
 
                     $j = 0;
                     do{
-                        //print_r($this->iterators[$name][$j]);
-                        $innerContent = $this->defineIterations($this->parseTemplate($matches[3][$i],$this->iterators[$name][$j]),$name,(isset($attributes["limit"]) ? $attributes["limit"] : 0));
+
+                        $innerContent = $this->defineIterations($this->parseTemplate($matches[3][$i],$this->iterators[$name][$j]?:array()),$name,(isset($attributes["limit"]) ? $attributes["limit"] : 0));
                         
                         $replacementKey_ineach =  $replacementKey.$j."_";
                   
@@ -862,7 +862,7 @@ Class Simplate {
                 
                 else{
                     
-                    $innerContent = $this->defineIterations($this->parseTemplate($matches[3][$i],$this->iterators[$name]),$name,(isset($attributes["limit"]) ? $attributes["limit"] : 0));
+                    $innerContent = $this->defineIterations($this->parseTemplate($matches[3][$i],$this->iterators[$name]?:array()),$name,(isset($attributes["limit"]) ? $attributes["limit"] : 0));
                     
                     $this->definedIterations["_replacementKeys"][] = $replacementKey;
 
