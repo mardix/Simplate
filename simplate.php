@@ -26,8 +26,8 @@
  * @since       May 1 2011
  * @uses        PHP 5.3 or later
  * 
- * @version     1.1.1
- * @LastUpdate  August 3rd 2011
+ * @version     1.1.2
+ * @LastUpdate  August 7 2011
  * 
  * @NowPlaying  "I can't be your friend" - D.H.T
  * 
@@ -172,7 +172,7 @@ Class Simplate {
      * @var String
      */
     public static $NAME = "Simplate";
-    public static $VERSION = "1.1.1";
+    public static $VERSION = "1.1.2";
 
    
     /**
@@ -639,7 +639,8 @@ Class Simplate {
          * New data in the iterator
          */
         if(!isset($this->iterators[$name])){
-           $this->iterators[$name] = $newData;
+           $this->iterators[$name] = (!isset($newData[0])) ? array($newData) : $newData;
+           
            $this->iterators["__meta__"][$name]["count"] =  1;
            
             /**
@@ -661,9 +662,10 @@ Class Simplate {
               /**
                * Entering the second loop so we'll add this data in the first index
                */
-              if($this->iterators["__meta__"][$name]["count"] == 2){
-                  $this->iterators[$name] = array($this->iterators[$name]);
-              }
+              if($this->iterators["__meta__"][$name]["count"] == 2)
+                  $this->iterators[$name] = (!isset($this->iterators[$name][0])) 
+                                                ? array($this->iterators[$name]) : $this->iterators[$name];
+              
           
           $this->iterators[$name][] =  $newData;
         }
@@ -834,8 +836,8 @@ Class Simplate {
 
                     $j = 0;
                     do{
-
-                        $innerContent = $this->defineIterations($this->parseTemplate($matches[3][$i],$this->iterators[$name][$j]?:array()),$name,(isset($attributes["limit"]) ? $attributes["limit"] : 0));
+                        
+                        $innerContent = $this->defineIterations($this->parseTemplate($matches[3][$i],$this->iterators[$name][$j]?: array()),$name,(isset($attributes["limit"]) ? $attributes["limit"] : 0));
                         
                         $replacementKey_ineach =  $replacementKey.$j."_";
                   
@@ -862,7 +864,7 @@ Class Simplate {
                 
                 else{
                     
-                    $innerContent = $this->defineIterations($this->parseTemplate($matches[3][$i],$this->iterators[$name]?:array()),$name,(isset($attributes["limit"]) ? $attributes["limit"] : 0));
+                    $innerContent = $this->defineIterations($this->parseTemplate($matches[3][$i],$this->iterators[$name]?: array()),$name,(isset($attributes["limit"]) ? $attributes["limit"] : 0));
                     
                     $this->definedIterations["_replacementKeys"][] = $replacementKey;
 
@@ -923,10 +925,11 @@ Class Simplate {
  
                     $replacements[$eachDefVal["replacementKey"]] = "";
                     $eachCount = 0;      
-                  
+                 
                       foreach($itrtr as $itData){
-
+                          
                         $innerContent = str_replace("{#ineach#}",$eachCount,$eachDefVal["innerContent"]);
+                        
                         $replacements[$eachDefVal["replacementKey"]] .= $this->parseTemplate($innerContent,$itData);  
 
                         $eachCount++;
