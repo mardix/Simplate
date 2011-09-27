@@ -26,7 +26,7 @@
  * @since       May 1 2011
  * @uses        PHP 5.3 or later
  * 
- * @version     1.1.2
+ * @version     1.1.3
  * @LastUpdate  August 7 2011
  * 
  * @NowPlaying  "I can't be your friend" - D.H.T
@@ -172,7 +172,7 @@ Class Simplate {
      * @var String
      */
     public static $NAME = "Simplate";
-    public static $VERSION = "1.1.2";
+    public static $VERSION = "1.1.3";
 
    
     /**
@@ -254,6 +254,12 @@ Class Simplate {
      */
     private $definedIterations = array();
     
+    /**
+     * To clean unassigned vars
+     * @var bool
+     */
+    private $clearUnassigned = true;
+        
     
     /** STATIC PROPERTIES **/
     
@@ -701,6 +707,19 @@ Class Simplate {
     public function stripComments($stripHTMLComments = true){
         
         $this->stripHTMLComments = $stripHTMLComments;
+        
+        return $this;
+    }
+    
+    
+    /**
+     * To remove all unassigned vars
+     * @param bool $clearUnassigned
+     * @return Simplate 
+     */
+    public function clearUnassigned($clearUnassigned = true){
+        
+        $this->clearUnassigned = $clearUnassigned;
         
         return $this;
     }
@@ -1579,6 +1598,19 @@ Class Simplate {
                     $this->templates[$ttK] = $this->stripHTMLComments($this->templates[$ttK]);
             
             
+			
+            /**
+             * Clear all unassigned vars
+             */
+            if($this->clearUnassigned){
+                
+                $this->templates[$tK] = preg_replace("/{@\w+}/i","",$this->templates[$tK]);
+                
+                $this->templates[$tK] =  str_replace(array_values($this->definedIterations["_replacementKeys"]),"",$this->templates[$tK]);
+            }
+
+			
+			
             /**
              * <spl-macro $macro='$options' />
              * It allows to send special intructions to the PHP from the template
