@@ -26,7 +26,7 @@
  * @since       May 1 2011
  * @uses        PHP 5.3 or later
  * 
- * @version     1.1.3
+ * @version     1.1.3.1
  * @LastUpdate  August 7 2011
  * 
  * @NowPlaying  "I can't be your friend" - D.H.T
@@ -172,7 +172,7 @@ Class Simplate {
      * @var String
      */
     public static $NAME = "Simplate";
-    public static $VERSION = "1.1.3";
+    public static $VERSION = "1.1.3.1";
 
    
     /**
@@ -1602,11 +1602,16 @@ Class Simplate {
             /**
              * Clear all unassigned vars
              */
+            /**
+             * Clear all unassigned vars
+             */
             if($this->clearUnassigned){
                 
-                $this->templates[$tK] = preg_replace("/{@\w+}/i","",$this->templates[$tK]);
+                $this->templates[$ttK] = preg_replace("/{@\w+}/i","",$this->templates[$ttK]);
                 
-                $this->templates[$tK] =  str_replace(array_values($this->definedIterations["_replacementKeys"]),"",$this->templates[$tK]);
+                $this->templates[$ttK] =  str_replace(array_values($this->definedIterations["_replacementKeys"]),"",$this->templates[$ttK]);
+                
+               
             }
 
 			
