@@ -26,10 +26,13 @@
  * @since       May 1 2011
  * @uses        PHP 5.3 or later
  * 
- * @version     1.1.3.1
- * @LastUpdate  August 7 2011
+ * @version     1.2
+ * @LastUpdate  December 3 2011  
+ *                      Added methods: setLiteral($content)
+ *                                               defineLiterals()
+ *                                                parseLiterals()
  * 
- * @NowPlaying  "I can't be your friend" - D.H.T
+ * @NowPlaying  "Hustle Hard" - Ace Hood 
  * 
  * -----------------------------------------------------------------------------
  *   
@@ -84,7 +87,20 @@
  * 
  *              <spl-include src="@templateKey" /> : Include a template defined from php
  * 
- * 
+ *    
+ *     <spl-literal>    : To put literal Simplate tags that will be returned as is
+ *                  <spl-literal>
+ *                      {@TagName}
+ *                      <spl-if TagName.is(Jose) >
+ *                              Hi Rihanna!
+ *                      </spl-if>
+ *                  </spl-literal>
+ *          
+ *            It will return it as
+ *                      {@TagName}
+ *                      <spl-if TagName.is(Jose) >
+ *                              Hi Rihanna!
+ *                      </spl-if>                
  * 
  *** Some Syntax
  *      {@}         Accsess variable in the current scope
@@ -145,7 +161,7 @@
  *      each($name,$ArrayData)              : Create a loop. If there is an array inside of ArrayData, it will create an inner loop  
  *      stripComments(bool)                 : To strip the HTML comments off the pages
  *      saveTo($tplName,$filePath)          : To save the rendered content into a file
- * 
+ *      setLiteral($content)                    : To leave Simplate tag as is in the content
  * 
  * == Remove / Clearing 
  *      removeTemplate($tplName)            : remove a template that was created with addFile or addTemplate
@@ -165,6 +181,7 @@
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 
+
 Class Simplate {
     
     /**
@@ -172,7 +189,7 @@ Class Simplate {
      * @var String
      */
     public static $NAME = "Simplate";
-    public static $VERSION = "1.1.3.1";
+    public static $VERSION = "1.2";
 
    
     /**
@@ -253,6 +270,19 @@ Class Simplate {
      * @var Array 
      */
     private $definedIterations = array();
+    
+    /**
+     * Count total literals
+     * @var int
+     */
+    private $definedLiteralsCount = 0;
+    
+    
+    /**
+     * Holds the defined literals.
+     * @var Array 
+     */
+    private $definedLiterals = array();
     
     /**
      * To clean unassigned vars
@@ -381,7 +411,8 @@ Class Simplate {
                 $this->templateInlines,
                 $this->templates,
                 $this->iterators,
-                $this->definedIterations
+                $this->definedIterations,
+                $this->definedLiterals
             );
     }
 
@@ -682,7 +713,19 @@ Class Simplate {
     }
 
 
-
+    /**
+     * Literals are data that has simplate markup but we dont want to parse them but leav as is
+     * by put the data between the tags: <spl-literal> and </spl-literal>
+     * Programmatically you can use $this->setLiteral($content)
+     * @param type $content
+     * @return string 
+     */ 
+    public function setLiteral($content=""){
+        return
+            $this->defineLiterals("<spl-literal>".$content."</spl-literal>");
+    }
+    
+    
     /**
      * Allow to use macros from the templae
      * macros execute certain php instructions that will affect the page
@@ -909,6 +952,54 @@ Class Simplate {
 
     
     /**
+     * Literals are data that has simplate markup but we dont want to parse them but leav as is
+     * by put the data between the tags: <spl-literal> and </spl-literal>
+     * Programmatically you can use $this->setLiteral($content)
+     * @param type $content
+     * @return type 
+     */
+    private function defineLiterals($content=""){
+        
+        $regexp = "/<spl\-literal>(.*?)<\/spl\-literal>/is";
+
+        preg_match_all($regexp,$content,$matches);
+
+        $totalMatches = count($matches[0]);        
+        
+         if($totalMatches){
+            
+            for($i=0;$i<$totalMatches;$i++){
+                
+                ++$this->definedLiteralsCount;
+                
+                $name = "_DEFINEDLITERALS_{$this->definedLiteralsCount}";
+                
+                $this->definedLiterals[$name] = $matches[1][$i];
+                
+                $content = str_replace($matches[0][$i],$name,$content);
+
+            }   
+            
+         }
+        
+         return
+                $content;
+    }
+    
+    
+    /**
+     * To return the original literals
+     * @param type $content
+     * @return type 
+     */
+    private function parseLiterals($content){
+        return
+            str_replace(array_keys($this->definedLiterals),array_values($this->definedLiterals),$content);
+        
+    }
+    
+    
+    /**
      * Get the attributes out of a string, ie: absolute="true"
      * @param string $tagString
      * @return Array - containg key/value of tag/value -> array("absolute"=>true)
@@ -1115,6 +1206,8 @@ Class Simplate {
      */
     private function parseTemplate($template,Array $Scope = array()) {
 
+        $template = $this->defineLiterals($template);
+        
         /**
          * Parse the condition statements
          */
@@ -1602,9 +1695,6 @@ Class Simplate {
             /**
              * Clear all unassigned vars
              */
-            /**
-             * Clear all unassigned vars
-             */
             if($this->clearUnassigned){
                 
                 $this->templates[$ttK] = preg_replace("/{@\w+}/i","",$this->templates[$ttK]);
@@ -1854,6 +1944,17 @@ Class Simplate {
             }
 
         }
+        
+
+        
+            /**
+             * Last going thru the templates to finish the work
+             */    
+             if($this->definedLiteralsCount){
+                foreach($this->templates as $ttK=>$ttV)
+                    $this->templates[$ttK] = $this->parseLiterals($this->templates[$ttK]);
+             }
+            
         return $this;
     }
     
