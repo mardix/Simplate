@@ -26,13 +26,14 @@
  * @since       May 1 2011
  * @uses        PHP 5.3 or later
  * 
- * @version     1.2
- * @LastUpdate  December 3 2011  
- *                      Added methods: setLiteral($content)
- *                                               defineLiterals()
- *                                                parseLiterals()
+ * @version     1.3
+ * @LastUpdate  Feb 12 2012
+ *              - No longer use <spl-ineach>, <spl-each> can be nested  
+ *              - No exception is thrown when adding a new file to an existing key. It just replaces it.
+ *                      
+ *                        
  * 
- * @NowPlaying  "Hustle Hard" - Ace Hood 
+ * @NowPlaying  "HAM" - Jay-Z & Kanye West 
  * 
  * -----------------------------------------------------------------------------
  *   
@@ -72,13 +73,18 @@
  *          
  *              </spl-each>
  * 
- *      <spl-ineach> : Loop on an inner loop inside of a loop
+ *      
+ *      <spl-each> : Nested each
  *              <spl-each eachname >
  *          
- *                  <spl-ineach innereachname >
+ *                  <spl-each innereachname >
  * 
- *                  </spl-ineach>
+ *                  </spl-each>
  * 
+ *                  <spl-each innereachname2 >
+ * 
+ *                  </spl-each>
+ *  
  *              </spl-each>
  * 
  *      <spl-include> : To include file from source, or template already loaded
@@ -105,7 +111,7 @@
  *** Some Syntax
  *      {@}         Accsess variable in the current scope
  *      {@:}        Access variable out of the current scope. Specially when in a loop and want to access variable outside of the loop 
- *      {@#}        To access the parent's variable in an inner loop <spl-ineach>o 
+ *      {@#}        To access the parent's variable in an inner loop <spl-ineach> 
  * 
  *      @           in <spl-include src="@templateKey" /> it refers to a key that was specified
  *      
@@ -161,7 +167,7 @@
  *      each($name,$ArrayData)              : Create a loop. If there is an array inside of ArrayData, it will create an inner loop  
  *      stripComments(bool)                 : To strip the HTML comments off the pages
  *      saveTo($tplName,$filePath)          : To save the rendered content into a file
- *      setLiteral($content)                    : To leave Simplate tag as is in the content
+ *      setLiteral($content)                : To leave Simplate tag as is in the content
  * 
  * == Remove / Clearing 
  *      removeTemplate($tplName)            : remove a template that was created with addFile or addTemplate
@@ -181,7 +187,6 @@
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 
-
 Class Simplate {
     
     /**
@@ -189,7 +194,7 @@ Class Simplate {
      * @var String
      */
     public static $NAME = "Simplate";
-    public static $VERSION = "1.2";
+    public static $VERSION = "1.2.1";
 
    
     /**
@@ -505,15 +510,7 @@ Class Simplate {
      */
     public function addFile($key,$file,$absolutePath=false){
         
-        /**
-         * Invalid variable name
-         */
-        if(!preg_match(self::$Regexp["vars"],$key))
-            throw new \Exception("Simplate Exception in ".__METHOD__." - Invalid file key name: '$key'. Variable must start with a letter or underscore. First letter must be capitalized. The rest of the var may contain alpha numeric and underscore ");
 
-        if(isset($this->templateFiles[$key]) || isset($this->templateStrings[$key]))
-                throw new \Exception("Simplate Exception in ".__METHOD__." - The file key '{$key}' exists. Chose another or use removeTemplate('$key') to discard this name.");
-        
         $this->templateFiles[$key] = array(
             "src"=>$file,
             "absolutePath"=>$absolutePath,
@@ -535,15 +532,7 @@ Class Simplate {
      *      <spl-include src="@KEY" />
      */
     public function addTemplate($key,$Content){
-        /**
-         * Invalid variable name
-         */
-        if(!preg_match(self::$Regexp["vars"],$key))
-            throw new \Exception("Simplate Exception in ".__METHOD__." - Invalid file key name: '$key'. Variable must start with a letter or underscore. First letter must be capitalized. The rest of the var may contain alpha numeric and underscore ");
 
-        if(isset($this->templateFiles[$key]) || isset($this->templateStrings[$key]))
-                throw new \Exception("Simplate Exception in ".__METHOD__." - The file key '{$key}' exists. Chose another or use removeTemplate('$key') to discard this name.");
-        
         $this->templateStrings[$key] = $Content;
         
         return $this;
@@ -616,7 +605,128 @@ Class Simplate {
                </spl-ineach>
      *      </spl-each>  
      */
-    public function each($name,Array $data,$isInnerEach=false){
+
+     public function each($name,Array $data,$isInnerEach=false){
+
+
+        /**
+         * Invalid variable name
+         * Making sure concatenated var (.VarName) pass this test
+         */
+        if((!$isInnerEach && preg_match("/\./",$name)) || (!preg_match("/\./",$name) && !preg_match(self::$Regexp["vars"],$name)))
+            throw new \Exception("Simplate Exception in ".__METHOD__." - Invalid each variable name: '$name'. Variable must start with a letter and contain alpha numeric and underscore ");
+
+            
+        /**
+         * Test if it's a bulk each where we dump a massive array into each, or if this each in a loop itself building the data
+         */
+        $isBulk = (isset($data[0]) && is_array($data[0])) ? true : false;
+
+        // Format the keys
+        $newData = array();
+
+        foreach($data as $K=>$V){
+
+            if(is_array($V)){
+                
+                if($isBulk){
+                   foreach($V as $Vk=>$Vv){
+                    
+                       /**
+                        * <spl-ineach >
+                        */
+                       if(is_array($Vv))
+                           $newData[$K]["__each__"][$Vk] = $this->inEach($Vv,"{$name}.{$K}");
+
+                       else
+                           $newData[$K][$this->formatVar($Vk)] = $Vv;
+                   }
+                }
+                
+                /**
+                 * <spl-ineach >
+                 */
+                else{
+                    $ln = $this->iterators["__meta__"][$name]["count"]?:0;
+                    $newData[$name]["__each__"][$K] = $this->inEach($V,"{$name}.{$ln}");;
+                }
+            }
+
+            else{
+                    $newData[$this->formatVar($K)] = $V;
+            }
+
+        }
+
+        /**
+         * New data in the iterator
+         */
+        if(!isset($this->iterators[$name])){
+           $this->iterators[$name] = (!isset($newData[0])) ? array($newData) : $newData;
+           
+           $this->iterators["__meta__"][$name]["count"] =  1;
+           
+            /**
+             * We'll save the children from the 
+             */
+            if(strpos($name,".")){
+                
+              $pName = current(explode(".",$name));
+              $this->iterators["__meta__"][$pName]["children"][$name] = 1;  
+            }
+                    
+        }
+        
+        // Data is in a loop, we'll reset and reassign old data
+        else{
+
+          ++$this->iterators["__meta__"][$name]["count"];
+          
+              /**
+               * Entering the second loop so we'll add this data in the first index
+               */
+              if($this->iterators["__meta__"][$name]["count"] == 2)
+                  $this->iterators[$name] = (!isset($this->iterators[$name][0])) 
+                                                ? array($this->iterators[$name]) : $this->iterators[$name];
+              
+          
+          $this->iterators[$name][] =  $newData;
+        }
+
+        unset($newData);
+        
+        return $this;
+    }   
+    
+    /**
+     * 
+     * @param array $data
+     * @param type $parent
+     * @return array 
+     */
+    private function inEach(Array $data,$parent){
+        
+           $nD = array();
+
+           foreach($data as $i=>$entries){
+               $nD[$i][$this->formatVar('#')] = $parent;
+               
+               foreach($entries as $k=>$v){
+                  if(is_array($v))
+                      $nD["__each__"][$k][] = $this->inEach($v,$parent.".$k.{$i}");
+                      
+                  else
+                    $nD[$i][$this->formatVar($k)] = $v; 
+               }
+               
+           }
+               
+           return
+            $nD;        
+    }
+    
+    
+    public function _each($name,Array $data,$isInnerEach=false){
 
 
         /**
@@ -893,37 +1003,31 @@ Class Simplate {
                 $attributes = $this->getAttributes($matches[2][$i]);
 
                 $replacementKey = "_ITERATORREPLACEMENTHOLDER_{$this->definedIterationsCount}_";
+///**
+               // if($tag=="ineach"){
 
-                if($tag=="ineach"){
-
-                    $j = 0;
-                    do{
-                        
-                        $innerContent = $this->defineIterations($this->parseTemplate($matches[3][$i],$this->iterators[$name][$j]?: array()),$name,(isset($attributes["limit"]) ? $attributes["limit"] : 0));
-                        
-                        $replacementKey_ineach =  $replacementKey.$j."_";
-                  
-                        $this->definedIterations["_replacementKeys"][] = $replacementKey_ineach;
+                        $this->definedIterations["_replacementKeys"][] = $replacementKey;
 
                         if(!isset($this->definedIterations[$name]))
                                 $this->definedIterations[$name] = array();
 
                         $this->definedIterations[$name][] = array(
-                              "replacementKey"=>$replacementKey_ineach,
+                              "replacementKey"=>$replacementKey,
                               "attributes"=>$attributes,
-                              "innerContent"=>$innerContent,
-                              "parentLimit"=>$parentLimit,
+                              "innerContent"=>$matches[3][$i],
+                              "parentLimit"=>isset($attributes["limit"]) ? $attributes["limit"] : 0,
+                              "dataKey"=>str_replace(".",".__each__.",$name),
                               "parentIndex"=>$j
                         );                         
                         
                         
-                       $j++;
-                    }while($j < $parentLimit);
+                     //  $j++;
+                    //}while($j < $parentLimit);
                     
                    // Add the ineach index so it can be included when parsing
-                   $replacementKey .= "{#ineach#}_";
-                }
-                
+                   //$replacementKey .= "{#ineach#}_";
+               // }
+                /**
                 else{
                     
                     $innerContent = $this->defineIterations($this->parseTemplate($matches[3][$i],$this->iterators[$name]?: array()),$name,(isset($attributes["limit"]) ? $attributes["limit"] : 0));
@@ -940,7 +1044,8 @@ Class Simplate {
                           "parentLimit"=>$parentLimit
                     );                    
                 }
-
+                **/
+                
                 $template = str_replace($matches[0][$i],$replacementKey,$template);
             }
         }
@@ -1020,33 +1125,48 @@ Class Simplate {
     private function parseIterators(){
 
         $replacements = array();
-
+print_r($this->definedIterations);
         foreach($this->definedIterations as $itName=>$defIt){
 
-            if($itName!="_replacementKeys"){
-                
+            if($itName!="_replacementKeys" && is_array($defIt)){
+               
               foreach($defIt as $eachDefKey=>$eachDefVal){
 
                   $itrtr = (strpos($itName,".")!==false) 
                                 ? $this->iterators[$itName][$eachDefVal["parentIndex"]] // <spl-ineach>
                                 : $this->iterators[$itName]; // <spl-each>
                   
-                  if(is_array($itrtr)){
- 
+                  if(is_array($itrtr) && count($itrtr)){
+                      print_r($itrtr[$eachDefKey]["__each__"]);
                     $replacements[$eachDefVal["replacementKey"]] = "";
-                    $eachCount = 0;      
-                 
-                      foreach($itrtr as $itData){
-                          
-                        $innerContent = str_replace("{#ineach#}",$eachCount,$eachDefVal["innerContent"]);
-                        
-                        $replacements[$eachDefVal["replacementKey"]] .= $this->parseTemplate($innerContent,$itData);  
+                    $ineach = "";
+                    $eachCount = 0; 
+                    
+                    
+                      /**
+                       * Fix loop for data with only one value 
+                       */
+                      if(count($itrtr) == count($itrtr,COUNT_RECURSIVE)){
+                            $innerContent = str_replace("{#ineach#}",$eachCount,$eachDefVal["innerContent"]);
 
-                        $eachCount++;
+                            $replacements[$eachDefVal["replacementKey"]] .= $this->parseTemplate($innerContent,$itrtr);  
+                            
+                            $eachCount++;
+                      }
+                      
+                      else{
+                          foreach($itrtr as $itData){
+                            
+                            $innerContent = str_replace("{#ineach#}",$eachCount,$eachDefVal["innerContent"]);
 
-                        if($eachDefVal["attributes"]["limit"]>0 && $eachCount >= $eachDefVal["attributes"]["limit"])
-                            break;
-                     }                      
+                            $replacements[$eachDefVal["replacementKey"]] .= $this->parseTemplate($innerContent,$itData);  
+
+                            $eachCount++;
+
+                           // if($eachDefVal["attributes"]["limit"]>0 && $eachCount >= $eachDefVal["attributes"]["limit"])
+                             //   break;
+                         }
+                      }
                   }
               }
             }
@@ -1113,7 +1233,10 @@ Class Simplate {
     
     
     /**
-     * To get variable that are in the outter scope of the current context. These var start with a dot -> %.Site%
+     * To get variable that are in the outter scope of the current context. These var start with either : or #
+     * : refers to the global scope
+     * # refers to the parent loop
+     * 
      * Usually if using outter scope data in a loop an inner loop 
      * @param type $Var
      * @param array $Scope - Ket/Value of data to assign
@@ -1154,6 +1277,7 @@ Class Simplate {
                 $Data = $this->iterators;
                 
                 $dotKeys = explode(".",$Var);
+
 
                 foreach ($dotKeys as $key) {
                                     
@@ -1611,7 +1735,36 @@ Class Simplate {
     }
     
     
-    
+    /**
+     * Read data in array, based on dotNotationKeys
+     * @param array $Data
+     * @param String $dotNotationKeys - the dot notation, i.e, "key.subkey.subsubkey"
+     * @param mixed $emptyValue - A value to return if dotNotArg doesnt find any match
+     * @return Mixed: Array, String, Numeric
+     * @example
+     *  $A = array("location"=>array("City"=>"Charlotte","ZipCode"=>25168));
+     *  dot2Array($A,"location.ZipCode") 
+     *  -> 25168
+     */
+    protected function dot2Array(Array $Data, $dotNotationKeys = ".", $emptyValue = "") {
+
+        // Eliminate the last dot
+        $dotNotationKeys = preg_replace("/\.$/","",$dotNotationKeys);
+        
+        if(!$dotNotationKeys)
+            return $Data;
+ 
+        $dotKeys = explode(".",$dotNotationKeys);
+
+        foreach ($dotKeys as $key) {
+            
+            if (!isset($Data[$key]))
+                return $emptyValue;
+            
+            $Data = $Data[$key];
+        } 
+        return $Data;
+    }    
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 //----------- THE SAUCE --------------------------------------------------------
