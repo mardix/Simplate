@@ -1,5 +1,5 @@
 
-
+hello World
 <spl-each Loop >
     We are in SPL-EACH #{@Counter}
         
@@ -12,7 +12,7 @@
         --------
         Inner Loop, with limit 2
         
-            <spl-ineach InnerLoop  >
+            <spl-each InnerLoop  >
                 --- INNER LOOP --
                 
                 Chain
@@ -29,6 +29,7 @@
                     
                     
                 {@#Counter}  / {@Team.toMardix().toUpperCase()} Won #{@Game} in Foto: {@Foto} in PL: {@#Name} 
-            </spl-ineach>
+            </spl-each>
     
 </spl-each> 
+
