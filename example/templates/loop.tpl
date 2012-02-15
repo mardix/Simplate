@@ -1,6 +1,6 @@
 
 hello World
-<spl-each Loop >
+<spl-each Loop limit="3" >
     We are in SPL-EACH #{@Counter}
         
         Local variable, with the name Site
@@ -12,7 +12,7 @@ hello World
         --------
         Inner Loop, with limit 2
         
-            <spl-each InnerLoop  >
+            <spl-each InnerLoop limit='2' >
                 --- INNER LOOP --
                 
                 Chain

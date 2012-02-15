@@ -606,14 +606,14 @@ Class Simplate {
      *      </spl-each>  
      */
 
-     public function each($name,Array $data,$isInnerEach=false){
+     public function each($name,Array $data){
 
 
         /**
          * Invalid variable name
          * Making sure concatenated var (.VarName) pass this test
          */
-        if((!$isInnerEach && preg_match("/\./",$name)) || (!preg_match("/\./",$name) && !preg_match(self::$Regexp["vars"],$name)))
+        if((preg_match("/\./",$name)) || (!preg_match("/\./",$name) && !preg_match(self::$Regexp["vars"],$name)))
             throw new \Exception("Simplate Exception in ".__METHOD__." - Invalid each variable name: '$name'. Variable must start with a letter and contain alpha numeric and underscore ");
 
             
@@ -970,84 +970,86 @@ Class Simplate {
 
     
     public function defineIterations($template){
-    // Cactch all each
-    $regexpP = '/<spl-each[^>]*>(?:(?:(?:(?!<\/?spl-each).)*|(?R))?)+<\/spl-each>/si';
-    // Call all inner each
-    $regexpR = '/<spl-each[^>]*>(?:(?:(?!<\/?spl-each).)*|(?R))?<\/spl-each>/si';
-    // Read the current 
-    $regexpS = "/<spl-each\s+([A-Z_]{1}.*?)\s+(.*?)>(.*?)<\/spl\-each>/is";
-    
-    
-    preg_match_all($regexpP, $template,$matchP);
-    
-    if(count($matchP[0])){
-        
-        foreach($matchP[0] as $iP=>$P){
-            
-            ++$this->definedIterationsCount;
-            
-            $innerHolder = array();
-            
-                // Inner each
-                preg_match_all($regexpR,$P,$matchR);
+        // Cactch all each
+        $regexpP = '/<spl-each[^>]*>(?:(?:(?:(?!<\/?spl-each).)*|(?R))?)+<\/spl-each>/si';
+        // Call all inner each
+        $regexpR = '/<spl-each[^>]*>(?:(?:(?!<\/?spl-each).)*|(?R))?<\/spl-each>/si';
+        // Read the current 
+        $regexpS = "/<spl-each\s+([A-Z_]{1}.*?)\s+(.*?)>(.*?)<\/spl\-each>/is";
 
-                if(count($matchR[0])){
 
-                    foreach($matchR[0] as $iR=>$R){
-                        
-                        $replacementKey = "#_INNER_.{$iR}";
-                        
-                        $P = str_replace($R,$replacementKey,$P);
-                        
-                        preg_match($regexpS, $R,$matchSR);
-                        
-                            $childName = $matchSR[1];
-                            $innerHolder[$childName] = array(
-                                  "replacementKey"=>$replacementKey,
-                                  "attributes"=>$this->getAttributes($matchSR[2]),
-                                  "innerContent"=>$matchSR[3],
-                            ); 
-                    }// R
+        preg_match_all($regexpP, $template,$matchP);
 
-                }
-            
-              preg_match($regexpS, $P,$matchSP); 
+        if(count($matchP[0])){
 
-                $replacementKey = "_ITERATORREPLACEMENTHOLDER.{$this->definedIterationsCount}";
-                $parentName = $matchSP[1];
-                $innerContent = $matchSP[3];
+            foreach($matchP[0] as $iP=>$P){
 
-                $this->definedIterations["_replacementKeys"][] = $replacementKey;
+                ++$this->definedIterationsCount;
 
-              if(count($innerHolder)){
-                  foreach($innerHolder as $childName=>$childData){
+                $innerHolder = array();
 
-                      $cName = "{$parentName}.__each__.{$childName}";
-                      $rK = $childData["replacementKey"];
-                      $repKey = $replacementKey.$rK;
-                      $childData["eachIndex"] = $cName;
-                      $childData["replacementKey"] = $repKey;
+                    // Inner each
+                    preg_match_all($regexpR,$P,$matchR);
 
-                      $this->definedIterations[$cName][] = $childData;
-                      $this->definedIterations["_replacementKeys"][] = $repKey;
-                      $innerContent = str_replace($rK,$repKey,$innerContent);
+                    if(count($matchR[0])){
+
+                        foreach($matchR[0] as $iR=>$R){
+
+                            $replacementKey = "#_INNER_.{$iR}";
+
+                            $P = str_replace($R,$replacementKey,$P);
+
+                            preg_match($regexpS, $R,$matchSR);
+                            
+                                $childName = $matchSR[1];
+                                $innerHolder[$childName] = array(
+                                      "replacementKey"=>$replacementKey,
+                                      "attributes"=>$this->getAttributes($matchSR[2]),
+                                      "innerContent"=>$matchSR[3],
+                                ); 
+                        }// R
+
+                    }
+
+                  preg_match($regexpS, $P,$matchSP); 
+
+                    $replacementKey = "_ITERATORREPLACEMENTHOLDER.{$this->definedIterationsCount}";
+                    $parentName = $matchSP[1];
+                    $innerContent = $matchSP[3];
+
+                    $this->definedIterations["_replacementKeys"][] = $replacementKey;
+
+                  if(count($innerHolder)){
+                      foreach($innerHolder as $childName=>$childData){
+
+                          $cName = "{$parentName}.__each__.{$childName}";
+                          $rK = $childData["replacementKey"];
+                          $repKey = $replacementKey.$rK;
+                          $childData["eachIndex"] = $cName;
+                          $childData["replacementKey"] = $repKey;
+
+                          $this->definedIterations[$cName][] = $childData;
+                          $this->definedIterations["_replacementKeys"][] = $repKey;
+                          $innerContent = str_replace($rK,$repKey,$innerContent);
+                      }
+
+                      unset($innerHolder);
                   }
-              }
 
-            $this->definedIterations[$parentName][] = array(
-                                                  "replacementKey"=>$replacementKey,
-                                                  "attributes"=>$this->getAttributes($matchSP[2]),
-                                                  "innerContent"=>$innerContent,
-                                                  "eachIndex"=>$parentName,
-                                            );           
-          
-          $template = str_replace($matchP[0][$iP],$replacementKey,$template);
-        }// P
-        
-    }
-    
-    return
-        $template;
+                $this->definedIterations[$parentName][] = array(
+                                                      "replacementKey"=>$replacementKey,
+                                                      "attributes"=>$this->getAttributes($matchSP[2]),
+                                                      "innerContent"=>$innerContent,
+                                                      "eachIndex"=>$parentName,
+                                                );           
+
+              $template = str_replace($matchP[0][$iP],$replacementKey,$template);
+            }// P
+
+        }
+
+        return
+            $template;
     }
 
     
@@ -1127,7 +1129,9 @@ Class Simplate {
 
               foreach($defIt as $eachDefKey=>$eachDefVal){
 
-               
+               /**
+                * Inner each, traverse down the document 
+                */
                if(preg_match("/__each__/",$itName)){
                    
                    list($parent,$child) = explode(".__each__.",$itName,2);
@@ -1135,9 +1139,9 @@ Class Simplate {
                    $pIt = $this->iterators[$parent];
                    
                    $limit = $eachDefVal["attributes"]["limit"];
-                   
+
                    foreach($pIt as $pItK=>$pItV){
-                       
+                      
                        unset($pItV["__each__"]);
                        
                        $childIndex = "{$parent}.{$pItK}.__each__.{$child}";
@@ -1148,35 +1152,26 @@ Class Simplate {
                             unset($itrtr["__each__"]);
 
                             $replacements[$eachDefVal["replacementKey"]] = "";
-                            $ineach = "";
-                            $eachCount = 0; 
-
 
                               /**
-                               * Fix loop for data with only one value 
+                               * Single Item 
                                */
                               if(count($itrtr) == count($itrtr,COUNT_RECURSIVE)){
-
                                     $replacements[$eachDefVal["replacementKey"]] .= $this->parseTemplate($eachDefVal["innerContent"],$itrtr);  
-
-                                    $eachCount++;
                               }
 
                               else{
-                                  foreach($itrtr as $itData){
+                                  foreach($itrtr as $itI=>$itData){
 
                                     $replacements[$eachDefVal["replacementKey"]] .= $this->parseTemplate($eachDefVal["innerContent"],$itData);  
 
-                                    $eachCount++;
-
-                                   // if($eachDefVal["attributes"]["limit"]>0 && $eachCount >= $eachDefVal["attributes"]["limit"])
-                                     //   break;
+                                    if($limit && $itI>=$limit-1)
+                                      break;
                                  }
                               }
                           }
                        
-                       if($limit && $limit<=$pItK)
-                           break;
+                       
                    }
                     
                }
