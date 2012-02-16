@@ -28,6 +28,7 @@ $SPL  = new Simplate(__DIR__."/templates");
 
 $SPL->addFile("LoopPage","loop.tpl");
 
+$SPL->assign("Site","Yahoo.com");
 
 // Let's prepare some data for the <spl-ineach>
     $innerD = array();
@@ -75,7 +76,7 @@ $SPL->addFile("LoopPage","loop.tpl");
  * 
  *  </spl-each>
  */
-for($i=0;$i<5;$i++){
+for($i=0;$i<10;$i++){
 
     $data[] =  array(
                   "Site"=>"www.{$i}.parent.com",

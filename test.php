@@ -7,6 +7,9 @@
  * @desc    
  */
 
+print(6%4);
+
+exit;
 class UTest{
 
     public $definedIterations = array();

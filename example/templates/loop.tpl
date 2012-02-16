@@ -2,7 +2,14 @@
 hello World
 <spl-each Loop limit="3" >
     We are in SPL-EACH #{@Counter}
-        
+    
+        <spl-if Counter.is(2) >
+                IT'S 2
+               
+                <spl-else>
+                    Not 2 but {@Counter}
+        </spl-if>
+    
         Local variable, with the name Site
             {@Site}
             
@@ -14,7 +21,7 @@ hello World
         
             <spl-each InnerLoop limit='2' >
                 --- INNER LOOP --
-                
+            
                 Chain
                     {@Time.toDate().toRahel().toMardix().toUpper()}
                     
@@ -32,4 +39,3 @@ hello World
             </spl-each>
     
 </spl-each> 
-

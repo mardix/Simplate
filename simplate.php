@@ -27,9 +27,10 @@
  * @uses        PHP 5.3 or later
  * 
  * @version     1.3
- * @LastUpdate  Feb 12 2012
+ * @LastUpdate  Feb 18 2012
  *              - No longer use <spl-ineach>, <spl-each> can be nested  
- *              - No exception is thrown when adding a new file to an existing key. It just replaces it.
+ *              - $this->addFile : No exception is thrown when adding a new file to an existing key. It just replaces it.
+ *              - <spl-if> condition can be placed in <spl-each>
  *                      
  *                        
  * 
@@ -162,7 +163,7 @@
  *      assign($key,$value)                 : assign variables. Previously set var can be concat by prefixing the $keyName with a dot: $this->assign(".KeyName","Value")
  *      assignJSON($key,$ArrayData)         : Same as assign, except in does json_encode to transform the array to json
  *      addFile($tplName,$filename)         : add a template file. Can be called in the template: <spl-include src="@TemplateName" />
- *      addTemplate($tplName,$Content)      : To add a content
+ *      addTemplate($tplName,$Content)      : To add a content as template.
  *      render($tplName)                    : To render the template as a string. Use print to print it on the screen
  *      each($name,$ArrayData)              : Create a loop. If there is an array inside of ArrayData, it will create an inner loop  
  *      stripComments(bool)                 : To strip the HTML comments off the pages
@@ -194,7 +195,7 @@ Class Simplate {
      * @var String
      */
     public static $NAME = "Simplate";
-    public static $VERSION = "1.2.1";
+    public static $VERSION = "1.3";
 
    
     /**
@@ -962,14 +963,32 @@ Class Simplate {
 
         if(file_exists($filename))
           return 
-            $this->defineIterations(file_get_contents($filename));  
+            $this->defineIterators(file_get_contents($filename));  
         
         else
             return "";
     } 
 
+    /**
+     * Get the attributes out of a string, ie: absolute="true"
+     * @param string $tagString
+     * @return Array - containg key/value of tag/value -> array("absolute"=>true)
+     */
+    private function getAttributes($tagString){
+        
+        preg_match_all("/".self::$Regexp["attributes"]."/",$tagString,$attributes_);
+        
+        return 
+            (count($attributes_[1]) && count($attributes_[2])) ? array_combine($attributes_[1],$attributes_[2]) : array();
+    }
     
-    public function defineIterations($template){
+    
+    /**
+     * Start defining iterators for SPL-FOREACH
+     * @param string $template - The content to parse the iterator through
+     * @return string 
+     */
+    public function defineIterators($template){
         // Cactch all each
         $regexpP = '/<spl-each[^>]*>(?:(?:(?:(?!<\/?spl-each).)*|(?R))?)+<\/spl-each>/si';
         // Call all inner each
@@ -995,7 +1014,7 @@ Class Simplate {
 
                         foreach($matchR[0] as $iR=>$R){
 
-                            $replacementKey = "#_INNER_.{$iR}";
+                            $replacementKey = "#{$iR}";
 
                             $P = str_replace($R,$replacementKey,$P);
 
@@ -1013,10 +1032,12 @@ Class Simplate {
 
                   preg_match($regexpS, $P,$matchSP); 
 
-                    $replacementKey = "_ITERATORREPLACEMENTHOLDER.{$this->definedIterationsCount}";
+                    $replacementKey = "_ITERATORS.PARENT_.{$this->definedIterationsCount}";
+                 
                     $parentName = $matchSP[1];
                     $innerContent = $matchSP[3];
-
+                    $attributes = $this->getAttributes($matchSP[2]);
+                    
                     $this->definedIterations["_replacementKeys"][] = $replacementKey;
 
                   if(count($innerHolder)){
@@ -1024,9 +1045,10 @@ Class Simplate {
 
                           $cName = "{$parentName}.__each__.{$childName}";
                           $rK = $childData["replacementKey"];
-                          $repKey = $replacementKey.$rK;
+                          $repKey = "_ITERATORS.CHILD_{$this->definedIterationsCount}".$rK;
                           $childData["eachIndex"] = $cName;
                           $childData["replacementKey"] = $repKey;
+                          $childData["parentLimit"] = isset($attributes["limit"]) ? $attributes["limit"] : 0;
 
                           $this->definedIterations[$cName][] = $childData;
                           $this->definedIterations["_replacementKeys"][] = $repKey;
@@ -1038,7 +1060,7 @@ Class Simplate {
 
                 $this->definedIterations[$parentName][] = array(
                                                       "replacementKey"=>$replacementKey,
-                                                      "attributes"=>$this->getAttributes($matchSP[2]),
+                                                      "attributes"=>$attributes,
                                                       "innerContent"=>$innerContent,
                                                       "eachIndex"=>$parentName,
                                                 );           
@@ -1100,21 +1122,7 @@ Class Simplate {
         
     }
     
-    
-    /**
-     * Get the attributes out of a string, ie: absolute="true"
-     * @param string $tagString
-     * @return Array - containg key/value of tag/value -> array("absolute"=>true)
-     */
-    private function getAttributes($tagString){
-        
-        preg_match_all("/".self::$Regexp["attributes"]."/",$tagString,$attributes_);
-        
-        return 
-            (count($attributes_[1]) && count($attributes_[2])) ? array_combine($attributes_[1],$attributes_[2]) : array();
-    }
-    
-    
+
     /**
      * Parse the iterators in with their inner content
      * @return Array containing the replacement  
@@ -1122,34 +1130,66 @@ Class Simplate {
     private function parseIterators(){
 
         $replacements = array();
-
+//print_r($this->definedIterations);
         foreach($this->definedIterations as $itName=>$defIt){
 
             if($itName!="_replacementKeys" && is_array($defIt)){
 
               foreach($defIt as $eachDefKey=>$eachDefVal){
 
-               /**
-                * Inner each, traverse down the document 
-                */
-               if(preg_match("/__each__/",$itName)){
-                   
-                   list($parent,$child) = explode(".__each__.",$itName,2);
-                   
-                   $pIt = $this->iterators[$parent];
-                   
                    $limit = $eachDefVal["attributes"]["limit"];
 
-                   foreach($pIt as $pItK=>$pItV){
-                      
-                       unset($pItV["__each__"]);
+                   /**
+                    * Inner each, traverse down the document 
+                    */
+                   if(preg_match("/__each__/",$itName)){
+
+                       list($parent,$child) = explode(".__each__.",$itName,2);
+
+                       $parentLimit = $eachDefVal["parentLimit"];
                        
-                       $childIndex = "{$parent}.{$pItK}.__each__.{$child}";
+                       $pIt = $this->iterators[$parent];
                        
-                       $itrtr = $this->dot2Array($this->iterators,$childIndex);
+                       $replacements[$eachDefVal["replacementKey"]] = "";
                        
+                       foreach($pIt as $pItK=>$pItV){
+
+                           $itrtr = $this->dot2Array($pItV,"__each__.{$child}");
+
+                              if(is_array($itrtr) && count($itrtr)){
+
+                                //
+
+                                  /**
+                                   * Single Item 
+                                   */
+                                  if(count($itrtr) == count($itrtr,COUNT_RECURSIVE)){
+                                        $replacements[$eachDefVal["replacementKey"]] .= $this->parseTemplate($eachDefVal["innerContent"],$itrtr);  
+                                  }
+
+                                  else{
+                                      foreach($itrtr as $itI=>$itData){
+
+                                        $replacements[$eachDefVal["replacementKey"]] .= $this->parseTemplate($eachDefVal["innerContent"],$itData);  
+
+                                        if($limit && $itI>=$limit-1)
+                                          break;
+                                     }
+                                  }
+                                  
+                              }
+                              
+                              if($parentLimit && $pItK >= $parentLimit-1)
+                                 break;
+                       }
+                       
+                   }
+
+                   else{
+
+                      $itrtr = $this->dot2Array($this->iterators,$itName);
+
                           if(is_array($itrtr) && count($itrtr)){
-                            unset($itrtr["__each__"]);
 
                             $replacements[$eachDefVal["replacementKey"]] = "";
 
@@ -1157,11 +1197,13 @@ Class Simplate {
                                * Single Item 
                                */
                               if(count($itrtr) == count($itrtr,COUNT_RECURSIVE)){
-                                    $replacements[$eachDefVal["replacementKey"]] .= $this->parseTemplate($eachDefVal["innerContent"],$itrtr);  
+                                    unset($itrtr["__each__"]);
+                                    $replacements[$eachDefVal["replacementKey"]] = $this->parseTemplate($eachDefVal["innerContent"],$itrtr);  
                               }
 
                               else{
                                   foreach($itrtr as $itI=>$itData){
+                                      unset($itData["__each__"]);
 
                                     $replacements[$eachDefVal["replacementKey"]] .= $this->parseTemplate($eachDefVal["innerContent"],$itData);  
 
@@ -1170,51 +1212,12 @@ Class Simplate {
                                  }
                               }
                           }
-                       
-                       
-                   }
-                    
-               }
-               
-               else{
-                   
+                    }
 
-
-                  $itrtr = $this->dot2Array($this->iterators,$itName);
-
-                  if(is_array($itrtr) && count($itrtr)){
-                    unset($itrtr["__each__"]);
-                    
-                    $replacements[$eachDefVal["replacementKey"]] = "";
-                    $ineach = "";
-                    $eachCount = 0; 
-                    
-                    
-                      /**
-                       * Fix loop for data with only one value 
-                       */
-                      if(count($itrtr) == count($itrtr,COUNT_RECURSIVE)){
-
-                            $replacements[$eachDefVal["replacementKey"]] .= $this->parseTemplate($eachDefVal["innerContent"],$itrtr);  
-                            
-                            $eachCount++;
-                      }
-                      
-                      else{
-                          foreach($itrtr as $itData){
-  
-                            $replacements[$eachDefVal["replacementKey"]] .= $this->parseTemplate($eachDefVal["innerContent"],$itData);  
-
-                            $eachCount++;
-
-                           // if($eachDefVal["attributes"]["limit"]>0 && $eachCount >= $eachDefVal["attributes"]["limit"])
-                             //   break;
-                         }
-                      }
-                  }
-               }
               }
+              
             }
+            
         }
 
         return $replacements;
@@ -1244,7 +1247,7 @@ Class Simplate {
                  */
                 if(preg_match(self::$Regexp["varsFilters"],$v,$mA)){
                     
-                    $var = $this->outterScopeVar($mA[1],$Scope);
+                    $var = $this->getVar($mA[1],$Scope);
                     
                     if(preg_match_all(self::$Regexp["extractFilter"],$mA[2],$filters)){
                         foreach($filters[1] as $fK=>$filter)
@@ -1258,7 +1261,7 @@ Class Simplate {
                  * Variable without filters
                  */
                 else if(preg_match(self::$Regexp["varsOuterScope"],$v,$mA))
-                    $Vars[$mA[0]] = $this->outterScopeVar($mA[1],$Scope);
+                    $Vars[$mA[0]] = $this->getVar($mA[1],$Scope);
                 
             }
 
@@ -1276,87 +1279,7 @@ Class Simplate {
         
     }
     
-    
-    /**
-     * To get variable that are in the outter scope of the current context. These var start with either : or #
-     * : refers to the global scope
-     * # refers to the parent loop
-     * 
-     * Usually if using outter scope data in a loop an inner loop 
-     * @param type $Var
-     * @param array $Scope - Ket/Value of data to assign
-     * @return mixed 
-     */
-    private function outterScopeVar($Var,Array $Scope = array()) {
-        
-        $oVar = $Var;
-        
-        $countDots = preg_match_all("/\./",$Var,$matches);
-        
-        if(preg_match("/^(:|#)/",$Var)){
-                          
-                /**
-                 * Access outter scope variables
-                 */
-                if(preg_match("/^:/",$Var)){
-                    $Var = str_replace(":","",$Var);
-                    
-                    
-                    if($countDots == 0)
-                        return 
-                            $this->getVar($Var);
-                }
-                    
-                /**
-                 * # indicate a parent entry in a <spl-ineach> 
-                 * It will get the @# tag that was built and concat it to var name to go look for it
-                 */
-                else if(preg_match("/^#/",$Var)){
-                    
-                  $parent = $this->getVar("#",$Scope);
-                  if($parent)
-                    $Var = preg_replace("/^#/","{$parent}.",$Var);
-                }
-
-                $lastNum = false;
-                $Data = $this->iterators;
-                
-                $dotKeys = explode(".",$Var);
-
-
-                foreach ($dotKeys as $key) {
-                                    
-                    /**
-                     * Key is numeric, will be used to format the following variable name to be accessed
-                     */
-                    if(is_numeric($key))
-                        $lastNum = true;
-                    
-                    else if(is_string($key) && $lastNum){
-                        $key = $this->formatVar($key);
-                        $lastNum = false;
-                    }
-                    
-
-                    if (!isset($Data[$key])){
-                        $this->__debugger($this->formatVar($oVar)." : Variable not found");
-                            return 
-                                $this->formatVar($oVar);
-                    }
-
-                    $Data = $Data[$key];
-
-                } 
-
-                return $Data;        
-            }
-         
-        return
-            $this->getVar($Var,$Scope);
-        
-    }
-
- 
+     
     /**
      * To strip HTML Coments
      * @param String $content
@@ -1371,6 +1294,7 @@ Class Simplate {
      /**
      * Parse template and start the replacement
      * @param String $template - The template content
+     * @param array $Scope - the scope of the current template. Which is data that can be used for this piece of code
      * @return string 
      */
     private function parseTemplate($template,Array $Scope = array()) {
@@ -1380,7 +1304,7 @@ Class Simplate {
         /**
          * Parse the condition statements
          */
-        $template = $this->parseCondStmts ($template);
+        $template = $this->parseCondStmts ($template,$Scope);
 
         /**
          * <SPL-INCLUDE src="$FILENAME" />
@@ -1426,6 +1350,7 @@ Class Simplate {
     /**
      * To parse  condition statements in the template
      * @param string $template - The template content
+     * @param array $Scope - the scope of the current template. Which is data that can be used for this piece of code
      * @return string 
      * 
      * @example
@@ -1439,7 +1364,7 @@ Class Simplate {
      *              Welcome to the gentlemen club
      *      </spl-if>
      */
-    private function parseCondStmts($template) {
+    private function parseCondStmts($template,Array $Scope = array()) {
             $lines = explode ("\n",$template );
             $newTemplate = "";
             $level = 0;
@@ -1465,7 +1390,7 @@ Class Simplate {
 
                 if (preg_match("/<spl-(if|elseif)".self::$Regexp["splIfMethods"].">/i",$line,$regs)) {
 
-                    $methodEvaled = $this->conditionalTestMethods($regs[2],$regs[4],$regs[5]);
+                    $methodEvaled = $this->conditionalTestMethods($regs[2],$regs[4],$regs[5],$Scope);
 
                     // Open up with all if tags
                     if(strtoupper($regs[1])=="IF"){
@@ -1522,21 +1447,45 @@ Class Simplate {
     
     
     /**
-     * Get a variable's name
-     * @param string $key - The variable key
+     * Get a variable data. Can access data in iterations and global scope
+     * @param string $Var - The variable key without @
      * @return mixed  
      */
-    protected function getVar($key,Array $Scope = array()){
-        
-        $key = $this->formatVar($key);
+    protected function getVar($Var,Array $Scope = array()){
 
+        /**
+         * {@#Name}
+         * # indicate a parent entry in a <spl-each> 
+         * It will get the @# tag that was built and concat it to var name to go look for it
+         */
+        if(preg_match("/^#/",$Var)){
+            
+            $key = $this->formatVar(str_replace("#","",$Var));
+            
+            $parent = $this->dot2Array($Scope,$this->formatVar("#"));
+            
+            if($parent){
+                // concat values to go down the array
+                $Var = $parent.".".$key;
+                return
+                    $this->dot2Array($this->iterators,$Var);
+            }
+        }        
+        
+        /**
+         * {@:Name}
+         * Global scope var
+         */
+        if(preg_match("/^:/",$Var)){
+            $Var = str_replace(":","",$Var);  
+            $Scope = array();
+        }
+        
+        $key = $this->formatVar($Var);
+        
         return 
-            (count($Scope) && isset($Scope[$key])) 
-                ? $Scope[$key] 
-                : (isset($this->Vars[$key]) 
-                            ? $this->Vars[$key] 
-                            : ""
-                  );
+            $this->dot2Array(count($Scope) ? $Scope : $this->Vars,$key);
+
     }
                 
                 
@@ -1554,20 +1503,20 @@ Class Simplate {
      *              is = $filterName
      *              18 = $value
      */
-    private function conditionalTestMethods($key,$testName,$value){
+    private function conditionalTestMethods($key,$testName,$value,Array $Scope = array()){
 
         // negate the keys=> !Key
         $neg = preg_match("/^!/",$key) ? true : false;
         
         $key = str_replace("!","",$key);
-        $keyVal = $this->getVar($key);
+        $keyVal = $this->getVar($key,$Scope);
 
         
         $testName = strtolower($testName);
         switch($testName){
             // unknown value should always return false
             default :
-                $this->__debugger("{$testMethod}({$value}) : test method is undefined");
+                $this->__debugger("{$testName}({$value}) : test method is undefined");
                 return false;
             break;
 
