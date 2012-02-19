@@ -27,10 +27,11 @@
  * @uses        PHP 5.3 or later
  * 
  * @version     1.3
- * @LastUpdate  Feb 18 2012
- *              - No longer use <spl-ineach>, <spl-each> can be nested  
- *              - $this->addFile : No exception is thrown when adding a new file to an existing key. It just replaces it.
- *              - <spl-if> condition can be placed in <spl-each>
+ * @LastUpdate  Feb 20 2012
+ *              - <spl-each> for nested loop 
+ *              - $this->addFile() : No exception is thrown when adding a new file to an existing key. It just replaces it.
+ *              - <spl-if> condition can be placed inside of <spl-each>
+ *              - new template filter: .calculate() to do some basic math operation
  *                      
  *                        
  * 
@@ -79,11 +80,11 @@
  *              <spl-each eachname >
  *          
  *                  <spl-each innereachname >
- * 
+ *                      CONTENT HERE
  *                  </spl-each>
  * 
  *                  <spl-each innereachname2 >
- * 
+ *                      CONTENT HERE 2
  *                  </spl-each>
  *  
  *              </spl-each>
@@ -580,8 +581,11 @@ Class Simplate {
         
         $content = $this->getContent($templateKey);
         
-        return 
-            file_put_contents($filename,$content) ? true : false;
+        if(!file_put_contents($fileName,$content)) 
+           throw new Exception("Unable to save to: {$fileName}");
+        
+        return
+            true;
 
     }
     
@@ -591,7 +595,6 @@ Class Simplate {
      * To create a loop iterator that will be called in the template by <spl-each>
      * @param string $name - The name of the loop. Must be unique
      * @param array $data - The data to be inserted
-     * @parent bool $isInnerEach - Indicate an inneach wich can accept a dot (.) in the name
      * @return Simplate 
      * 
      * @HTMLTAG
@@ -599,11 +602,11 @@ Class Simplate {
      *          CONTENT HERE
      *      </spl-each>
      * 
-     *      For inner loop
+     *      For nested loop
      *      <spl-each {$name}>
-               <spl-ineach {$innername}>
+               <spl-each {$innername}>
                    CONTENT HERE
-               </spl-ineach>
+               </spl-each>
      *      </spl-each>  
      */
 
@@ -726,102 +729,6 @@ Class Simplate {
             $nD;        
     }
     
-    
-    public function _each($name,Array $data,$isInnerEach=false){
-
-
-        /**
-         * Invalid variable name
-         * Making sure concatenated var (.VarName) pass this test
-         */
-        if((!$isInnerEach && preg_match("/\./",$name)) || (!preg_match("/\./",$name) && !preg_match(self::$Regexp["vars"],$name)))
-            throw new \Exception("Simplate Exception in ".__METHOD__." - Invalid each variable name: '$name'. Variable must start with a letter and contain alpha numeric and underscore ");
-
-            
-        /**
-         * Test if it's a bulk each where we dump a massive array into each, or if this each in a loop itself building the data
-         */
-        $isBulk = (isset($data[0]) && is_array($data[0])) ? true : false;
-
-        // Format the keys
-        $newData = array();
-        
-        foreach($data as $K=>$V){
-
-            if(is_array($V)){
-                
-                if($isBulk){
-                   foreach($V as $Vk=>$Vv){
-                    
-                       /**
-                        * <spl-ineach >
-                        */
-                       if(is_array($Vv)){
-                           $Vv = array_map(function($a)use($name,$K){ return $a+array("#"=>"{$name}.{$K}");},$Vv);
-                           $this->each("{$name}.{$Vk}",$Vv,true); 
-                       }  
-                       
-                       else{
-                           $newData[$K][$this->formatVar($Vk)] = $Vv;
-                       }                       
-                   }
-                }
-                
-                /**
-                 * <spl-ineach >
-                 */
-                else{
-                    $ln = $this->iterators["__meta__"][$name]["count"]?:0;
-                    $V = array_map(function($a)use($name,$ln){ return $a+array("#"=>"{$name}.{$ln}");},$V);
-                    $this->each("{$name}.{$K}",$V,true);
-                }
-            }
-
-            else{
-                    $newData[$this->formatVar($K)] = $V;
-            }
-
-        }
-
-        /**
-         * New data in the iterator
-         */
-        if(!isset($this->iterators[$name])){
-           $this->iterators[$name] = (!isset($newData[0])) ? array($newData) : $newData;
-           
-           $this->iterators["__meta__"][$name]["count"] =  1;
-           
-            /**
-             * We'll save the children from the 
-             */
-            if(strpos($name,".")){
-                
-              $pName = current(explode(".",$name));
-              $this->iterators["__meta__"][$pName]["children"][$name] = 1;  
-            }
-                    
-        }
-        
-        // Data is in a loop, we'll reset and reassign old data
-        else{
-
-          ++$this->iterators["__meta__"][$name]["count"];
-          
-              /**
-               * Entering the second loop so we'll add this data in the first index
-               */
-              if($this->iterators["__meta__"][$name]["count"] == 2)
-                  $this->iterators[$name] = (!isset($this->iterators[$name][0])) 
-                                                ? array($this->iterators[$name]) : $this->iterators[$name];
-              
-          
-          $this->iterators[$name][] =  $newData;
-        }
-
-        unset($newData);
-        
-        return $this;
-    }
 
 
     /**
@@ -988,7 +895,7 @@ Class Simplate {
      * @param string $template - The content to parse the iterator through
      * @return string 
      */
-    public function defineIterators($template){
+    private function defineIterators($template){
         // Cactch all each
         $regexpP = '/<spl-each[^>]*>(?:(?:(?:(?!<\/?spl-each).)*|(?R))?)+<\/spl-each>/si';
         // Call all inner each
@@ -1014,7 +921,7 @@ Class Simplate {
 
                         foreach($matchR[0] as $iR=>$R){
 
-                            $replacementKey = "#{$iR}";
+                            $replacementKey = "_{$iR}__{c#}_";
 
                             $P = str_replace($R,$replacementKey,$P);
 
@@ -1032,7 +939,7 @@ Class Simplate {
 
                   preg_match($regexpS, $P,$matchSP); 
 
-                    $replacementKey = "_ITERATORS.PARENT_.{$this->definedIterationsCount}";
+                    $replacementKey = "_ITERATORS.PARENT_{$this->definedIterationsCount}";
                  
                     $parentName = $matchSP[1];
                     $innerContent = $matchSP[3];
@@ -1049,6 +956,7 @@ Class Simplate {
                           $childData["eachIndex"] = $cName;
                           $childData["replacementKey"] = $repKey;
                           $childData["parentLimit"] = isset($attributes["limit"]) ? $attributes["limit"] : 0;
+                          $childData["parentIndex"] = $this->definedIterationsCount;
 
                           $this->definedIterations[$cName][] = $childData;
                           $this->definedIterations["_replacementKeys"][] = $repKey;
@@ -1063,6 +971,7 @@ Class Simplate {
                                                       "attributes"=>$attributes,
                                                       "innerContent"=>$innerContent,
                                                       "eachIndex"=>$parentName,
+                                                      "index"=>$this->definedIterationsCount
                                                 );           
 
               $template = str_replace($matchP[0][$iP],$replacementKey,$template);
@@ -1124,53 +1033,50 @@ Class Simplate {
     
 
     /**
-     * Parse the iterators in with their inner content
-     * @return Array containing the replacement  
+     * Parse the iterators and create the loop 
+     * @return Array - containing the replacement  
      */
     private function parseIterators(){
 
         $replacements = array();
-//print_r($this->definedIterations);
+
         foreach($this->definedIterations as $itName=>$defIt){
 
             if($itName!="_replacementKeys" && is_array($defIt)){
 
               foreach($defIt as $eachDefKey=>$eachDefVal){
 
-                   $limit = $eachDefVal["attributes"]["limit"];
-
-                   /**
-                    * Inner each, traverse down the document 
-                    */
+                   $limit = isset($eachDefVal["attributes"]["limit"]) ? $eachDefVal["attributes"]["limit"] : 0 ;
+                   $replacementKey = $eachDefVal["replacementKey"];
+                   $innerContent = $eachDefVal["innerContent"];
+                   
+                   // Nested each
                    if(preg_match("/__each__/",$itName)){
 
                        list($parent,$child) = explode(".__each__.",$itName,2);
 
                        $parentLimit = $eachDefVal["parentLimit"];
-                       
                        $pIt = $this->iterators[$parent];
-                       
-                       $replacements[$eachDefVal["replacementKey"]] = "";
-                       
+
                        foreach($pIt as $pItK=>$pItV){
+                           $_replacementKey = str_replace("_{c#}_",$pItK,$replacementKey);
 
                            $itrtr = $this->dot2Array($pItV,"__each__.{$child}");
 
                               if(is_array($itrtr) && count($itrtr)){
 
-                                //
-
-                                  /**
-                                   * Single Item 
-                                   */
+                                  // Single Item
                                   if(count($itrtr) == count($itrtr,COUNT_RECURSIVE)){
-                                        $replacements[$eachDefVal["replacementKey"]] .= $this->parseTemplate($eachDefVal["innerContent"],$itrtr);  
+                                        $replacements[$_replacementKey] .= $this->parseTemplate($innerContent,$itrtr);  
                                   }
 
                                   else{
                                       foreach($itrtr as $itI=>$itData){
-
-                                        $replacements[$eachDefVal["replacementKey"]] .= $this->parseTemplate($eachDefVal["innerContent"],$itData);  
+                                        
+                                        if(!isset($replacements[$_replacementKey]))
+                                            $replacements[$_replacementKey] = "";
+                                        
+                                        $replacements[$_replacementKey] .= $this->parseTemplate($innerContent,$itData);  
 
                                         if($limit && $itI>=$limit-1)
                                           break;
@@ -1191,21 +1097,21 @@ Class Simplate {
 
                           if(is_array($itrtr) && count($itrtr)){
 
-                            $replacements[$eachDefVal["replacementKey"]] = "";
-
-                              /**
-                               * Single Item 
-                               */
+                            $replacements[$replacementKey] = "";
+                            
+                              // Single Item
                               if(count($itrtr) == count($itrtr,COUNT_RECURSIVE)){
+                                    $_innerContent = str_replace("_{c#}_",0,$innerContent);
                                     unset($itrtr["__each__"]);
-                                    $replacements[$eachDefVal["replacementKey"]] = $this->parseTemplate($eachDefVal["innerContent"],$itrtr);  
+                                    $replacements[$replacementKey] = $this->parseTemplate($_innerContent,$itrtr);  
                               }
 
                               else{
                                   foreach($itrtr as $itI=>$itData){
-                                      unset($itData["__each__"]);
-
-                                    $replacements[$eachDefVal["replacementKey"]] .= $this->parseTemplate($eachDefVal["innerContent"],$itData);  
+                                      
+                                    unset($itData["__each__"]);
+                                    $_innerContent = str_replace("_{c#}_",$itI,$innerContent);
+                                    $replacements[$replacementKey] .= $this->parseTemplate($_innerContent,$itData);  
 
                                     if($limit && $itI>=$limit-1)
                                       break;
@@ -1213,7 +1119,6 @@ Class Simplate {
                               }
                           }
                     }
-
               }
               
             }
@@ -1548,8 +1453,9 @@ Class Simplate {
             break;
 
         
-            // .match(keyVal) - contain keyval
+            // .match(keyVal) - or .contains(keyVal) contain keyval
             case "match":
+            case "contains":
                 $res = preg_match("~{$value}~",$keyVal);
             break;                       
 
@@ -1629,17 +1535,17 @@ Class Simplate {
                 return strtoupper($val);
             break;
         
-            // .capitalize()
-            case "capitalize":
-                return ucwords($val);
-            break;
-        
             // .toLower() 
             case "tolower":
                 return strtolower($val);
             break;
         
-            // .truncate(0,4)
+            // .capitalize()
+            case "capitalize":
+                return ucwords($val);
+            break;
+        
+            // .truncate(0,4), or truncate(7) (which will truncate to the 7th char)
             case "truncate":
                 // Second argument is empty, so it will start at 0 
                 if($args[0] && !isset($args[1])){
@@ -1711,6 +1617,22 @@ Class Simplate {
                 return date(isset($mask[$format]) ? $mask[$format] : $format ,$toTime);  
                 
             break;
+            
+            // .calculate(inst), where instr can be +-*/% . ie: .calculate(+1) or multiple, .calulcate(+1,*5,...)
+            
+            case "calculate":
+                $oVal = $val;
+                foreach($args as $arg){
+                  if(preg_match("/^(\+|\-|\/|\*|%)([0-9]+)$/",$arg,$match)){
+                      print_r($match);
+                      eval('$oVal = $oVal '.$match[0].';');
+                  } 
+                }
+                  return $oVal;
+
+            break;
+        
+        
         }
         
         
