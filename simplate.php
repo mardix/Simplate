@@ -26,8 +26,8 @@
  * @since       May 1 2011
  * @uses        PHP 5.3 or later
  * 
- * @version     1.3
- * @LastUpdate  Feb 20 2012
+ * @version     2.0
+ * @LastUpdate  Feb 21 2012
  *              - <spl-each> for nested loop 
  *              - $this->addFile() : No exception is thrown when adding a new file to an existing key. It just replaces it.
  *              - <spl-if> condition can be placed inside of <spl-each>
@@ -196,7 +196,7 @@ Class Simplate {
      * @var String
      */
     public static $NAME = "Simplate";
-    public static $VERSION = "1.3";
+    public static $VERSION = "2.0";
 
    
     /**
@@ -314,9 +314,12 @@ Class Simplate {
         
         /**
          * Extract Name.Method() from 
-         *  <SPL-IF Name.Method() >
+         *  <SPL-IF @Name.Method() >
+         *  <SPL-IF @Age.Method().Chained().Test() >
+         *  <SPL-IF @#Age.Method().Chained().Test() >
+         *  <SPL-IF @:Age.Method().Chained().Test() >
          */
-        "splIfMethods"=>"\s*([a-zA-Z_!][a-zA-Z0-9_]+)(\.|\-\>)?([a-zA-Z_][a-zA-Z0-9_]+)?\(?(\s*\,?\".*\"\s*\,?|\s*\,?[a-z0-9\_,]*\s*\,?)\)?\s*",
+        "splIfMethods"=>"/<spl-(if|elseif)\s+@(?:([:#\w]*)?\.)+((?:[\w]+)(?:\((?:.*?)\))+|(?R))\s*>/i",
        
         
         /**
@@ -332,10 +335,10 @@ Class Simplate {
         "varsFilters"=>"/{@(?:([:#\w]*)?\.)+((?:[\w]+)(?:\((.*?)\))+|(?R))}/",
         
         /**
-         * Extract the filter and the params
+         * Get the chained methods
          *          .replace(x,y) => [1]=>replace, [2]=>x,y
          */
-        "extractFilter"=>"/([\w]+)\((.*?)\)(?:\.*)/",
+        "chainedMethods"=>"/([\w]+)\((.*?)\)(?:\.*)/",
         
         
         /**
@@ -1154,7 +1157,7 @@ Class Simplate {
                     
                     $var = $this->getVar($mA[1],$Scope);
                     
-                    if(preg_match_all(self::$Regexp["extractFilter"],$mA[2],$filters)){
+                    if(preg_match_all(self::$Regexp["chainedMethods"],$mA[2],$filters)){
                         foreach($filters[1] as $fK=>$filter)
                             $var = $this->applyFilter($var,$filter,explode(",",$filters[2][$fK]));
                     }
@@ -1285,18 +1288,55 @@ Class Simplate {
                 /**
                  * <SPL-IF KEY.METHOD(VALUE)>
                  * <SPL-ELSEIF KEY.METHOD(VALUE)>
+                 * Conditional can be chained with filters, as long as the last chain is a conditional
                  * 
-                 * Format KEY.METHOD(VALUE)
                  * e.g: Number.odd()
                  *      Name.match(mynameis)
                  *      Field.gt(5)
+                 * or chained
+                 *      Age.calculate(+1).is(19)
+                 *      Name.length().calculate(+6).gte(18)
+                 * 
                  * <spl-if Age.gte(18) > // Age >= 18      
                  */
 
-                if (preg_match("/<spl-(if|elseif)".self::$Regexp["splIfMethods"].">/i",$line,$regs)) {
+                if (preg_match(self::$Regexp["splIfMethods"],$line,$regs)) {
+                   
+                    $methodEvaled = false;
+                    $var = $this->getVar($regs[2],$Scope);
 
-                    $methodEvaled = $this->conditionalTestMethods($regs[2],$regs[4],$regs[5],$Scope);
+                    if(preg_match_all(self::$Regexp["chainedMethods"],$regs[3],$filters)){
+                       
+                       
+                        $totalFilters = count($filters[1]);
+                        
+                        // One method, must be a test
+                        if($totalFilters==1){
+                           $methodEvaled = $this->conditionalTestMethods($regs[2],$filters[1][0],$filters[2][0],$Scope); 
+                        }
+                        
+                        // Chained
+                        else{
+                            for($i=0;$i<$totalFilters;$i++){
 
+                                // Filter must be applied 
+                                if($i+1 < $totalFilters){
+                                    $var = $this->applyFilter($var,$filters[1][$i],explode(",",$filters[2][$i]));
+                                }
+
+                                // The last method must be conditional to test 
+                                else{
+                                  // After all set and done, we'll make a new scope with the var
+                                  $nV = "__Var";
+                                  $Scope = array($this->formatVar("__Var")=>$var);
+                                  $methodEvaled = $this->conditionalTestMethods($nV,$filters[1][$i],$filters[2][$i],$Scope); 
+                                 
+                                }
+                            }
+                        }
+                    }
+
+                    
                     // Open up with all if tags
                     if(strtoupper($regs[1])=="IF"){
                              $level++;   
@@ -1624,7 +1664,6 @@ Class Simplate {
                 $oVal = $val;
                 foreach($args as $arg){
                   if(preg_match("/^(\+|\-|\/|\*|%)([0-9]+)$/",$arg,$match)){
-                      print_r($match);
                       eval('$oVal = $oVal '.$match[0].';');
                   } 
                 }
