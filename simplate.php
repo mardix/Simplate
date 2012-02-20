@@ -9,86 +9,95 @@
  *                  logic and content from its presentation. 
  *              Simplate is designed to be Developers and Designers friendly.
  *              For developers it uses PHP 5.3 (or later) and can be extended. 
- *                  It assigns variables, include other templates, create loop 
- *                  and embeded loops, etc
+ *                  It assigns variables, can include other templates, create loop 
+ *                  and nested loops, etc
  *              For designers, it has a very low learning curve because it uses HTML-like syntax 
  *                  for example {@VarName} to show a var that was assigned, 
  *                  <spl-if Age.is()> to execute some script and more 
  *                  All variables become pseudo object and can be extended by built-in filters 
  *                  or filters you created yourself like {@VarName.toUpper()} or can be chained down like
- *                  {@VarName.replace(.com,.net).toUpper().truncate(15)}
+ *                  {@VarName.replace(.com,.net).toUpper().truncate(15)} or in a <spl-if> statement like <spl-if @Text.length().gt(4)>
  * 
- * @link        http://mardix.github.com/Simplate
+ * @link        http://github.com/mardix/Simplate
  * @github      http://mardix.github.com
  * @twitter     @mardix
  * @license     LGPL
  * @copyright   Copyright (c) 2011 - Mardix
- * @since       May 1 2011
- * @uses        PHP 5.3 or later
+ * @since       1.x May 1 2011,
+ *              2.0 Feb 21 2011
+ * 
+ * @required    PHP 5.3 or later
  * 
  * @version     2.0
  * @LastUpdate  Feb 21 2012
- *              - <spl-each> for nested loop 
+ *              - Major update. Will break some 1.x features
+ *              - All variables are called by @Var, @:Var or @#Var, either in {} or <spl-tag>
+ *              - <spl-each> can be nested for loop
  *              - $this->addFile() : No exception is thrown when adding a new file to an existing key. It just replaces it.
  *              - <spl-if> condition can be placed inside of <spl-each>
  *              - new template filter: .calculate() to do some basic math operation
- *                      
+ *              - Refactoring
  *                        
  * 
- * @NowPlaying  "HAM" - Jay-Z & Kanye West 
+ * @NowPlaying  "Amen" - Pusha T feat Kanye West & Young Jeezy 
  * 
  * -----------------------------------------------------------------------------
  *   
- * - SIMPLATE API -
+ * ---------------------------- SIMPLATE API -----------------------------------
  * 
- * TEMPLATE:
+ *+++++++++++++++++++++++++ FOR DESIGNERS (Template) +++++++++++++++++++++++++++
  * 
  * Tags to show, iterate and include data
  * 
- *** VARIABLES: {@} variables assigned from the PHP side
+ *** VARIABLES: {@Varname}
+ *      Variable must be assigned from the PHP side, and can be called in the template page
+ *      by using {@Varname}
  * 
- *      {@Varname}  : All assigned variables can be accessed this
+ *      {@Varname}  : All assigned variables can be accessed this way
  *      {@Varname.toUpper()}    : Will uppercase the variable
  *      {@Varname.replace(www,ZZZ)} : Replace www by ZZZ in the VarName 
  *      {@Varname.replace(www,zZz).toUpper()} : Chain
  * 
  *  
- *** SCRIPT TAGS: <spl-$intruction > execution block to test for if, elseif, else, loop, include
+ *** SCRIPT TAGS: <spl-$intruction > execution block to test for if, elseif, else, each, include, literal
  * 
+ ****** Conditionals
  *      <spl-if> : Conditional Statement
  *      <spl-elseif> : Conditional statement if SPL-IF fails
  *      <spl-else>  : When if and elseif fail
  * 
- *              <spl-if VarName.empty()>
+ *              <spl-if @VarName.empty()>
  *                  Add content here
  * 
- *                      <spl-elseif VarName.gt(8)>
+ *                      <spl-elseif @VarName.gt(8)>
  *                          Add content for else if
  * 
  *                      <spl-else>
  *                          Add content for else
  *              </spl-if>
+ *      
  * 
- * 
+ ****** Loops
  *      <spl-each> : Loop 
- *              <spl-each eachname >
+ *              <spl-each @eachname >
  *          
  *              </spl-each>
  * 
  *      
  *      <spl-each> : Nested each
- *              <spl-each eachname >
+ *              <spl-each @eachname >
  *          
- *                  <spl-each innereachname >
+ *                  <spl-each @innereachname >
  *                      CONTENT HERE
  *                  </spl-each>
  * 
- *                  <spl-each innereachname2 >
+ *                  <spl-each @innereachname2 >
  *                      CONTENT HERE 2
  *                  </spl-each>
  *  
  *              </spl-each>
  * 
+ ****** Include other templates in the template
  *      <spl-include> : To include file from source, or template already loaded
  *          
  *              <spl-include src="file.tpl" /> : Include a file directly in a template
@@ -96,34 +105,44 @@
  *              <spl-include src="@templateKey" /> : Include a template defined from php
  * 
  *    
- *     <spl-literal>    : To put literal Simplate tags that will be returned as is
+ ***** Literal, to not parse the content
+ *     <spl-literal>    : To put literal Simplate tags that will be returned as is, therefor will not be parsed and be left as is
  *                  <spl-literal>
  *                      {@TagName}
- *                      <spl-if TagName.is(Jose) >
+ *                      <spl-if @TagName.is(Jose) >
  *                              Hi Rihanna!
  *                      </spl-if>
  *                  </spl-literal>
  *          
  *            It will return it as
  *                      {@TagName}
- *                      <spl-if TagName.is(Jose) >
+ *                      <spl-if @TagName.is(Jose) >
  *                              Hi Rihanna!
  *                      </spl-if>                
  * 
- *** Some Syntax
- *      {@}         Accsess variable in the current scope
- *      {@:}        Access variable out of the current scope. Specially when in a loop and want to access variable outside of the loop 
- *      {@#}        To access the parent's variable in an inner loop <spl-ineach> 
+ **** More on variable access
+ *      Accessing variables. This can be used in {} or <spl-(if|elseif|each) >
  * 
- *      @           in <spl-include src="@templateKey" /> it refers to a key that was specified
- *      
+ *      @         Accsess variable in the current scope
+ *      @:        Access variable out of the current scope. Specially when in a loop and want to access variable outside of the loop 
+ *      @#        To access the parent's variable in an inner loop <spl-ineach> 
+ * 
+ *      i.e
+ *      {@Varname} access the local var within the current scope, which include each and nested each
+ *      {@:Varname} to access the Varname in the global scope
+ *      {@#Varname} when in a nested each and want to access the parent data
+ * 
+ *      Note:
+ *      <spl-each> only access @Varname, no @:Varname or @#Varname
+ *      <spl-each @Loop >
  * 
  *** COMMENTS:
- *     There is no special tags for commenting. You can use the standar HTML commenting tag <!-- --> 
+ *     There is no special tags for commenting. You can use the standard HTML commenting tag <!-- --> 
  *     If you want to remove all html comments, use <spl-macro cmd="stripComments" /> or Simplate::stripComments()
  * 
  * 
  *** DO MORE WITH MACROS
+ *      If $this->setMacro is set, you will be able to execute some command to be execute from the PHP side
  * 
  *      - <spl-macro debug="vars" /> display the variables that were assigned
  *      - <spl-macro debug="errors" /> display all errors for unassigned vars, undefined filters etc
@@ -131,7 +150,7 @@
  *      - <spl-macro cmd="stripComments" /> Strip all HTML comments off the page
  * 
  * 
- *=== ADVANCED
+ **** ADVANCED
  * 
  *      ATTRIBUTES
  *          Each attributes are key=value
@@ -157,7 +176,13 @@
  * 
  *------------------------------------------------------------------------------
  *  
- *=== PHP:
+ *+++++++++++++++++++++++++++ FOR DEVELOPERS (PHP) +++++++++++++++++++++++++++++
+ * 
+ * Simplate is pretty easy and will get you going right away. 
+ * 
+ * Note: One requirement when setting variable with $this->assign(), $this->each(), $this->addFile(), $this->addTemplate,
+ * is that the key must start with an Uppercase Alpha non numeric, A-Z_ and underscore. i.e $this->assign("Varname","Hello"); $this->each("Loops",$Data);
+ * 
  * Below are the public methods to assign variables, loop over data, include template file etc...
  * 
  *      setDir($dirPath)                    : set the root dir
@@ -165,24 +190,27 @@
  *      assignJSON($key,$ArrayData)         : Same as assign, except in does json_encode to transform the array to json
  *      addFile($tplName,$filename)         : add a template file. Can be called in the template: <spl-include src="@TemplateName" />
  *      addTemplate($tplName,$Content)      : To add a content as template.
- *      render($tplName)                    : To render the template as a string. Use print to print it on the screen
  *      each($name,$ArrayData)              : Create a loop. If there is an array inside of ArrayData, it will create an inner loop  
- *      stripComments(bool)                 : To strip the HTML comments off the pages
- *      saveTo($tplName,$filePath)          : To save the rendered content into a file
+ *      render($tplName)                    : To render the template as a string. Use print to print it on the screen
  *      setLiteral($content)                : To leave Simplate tag as is in the content
+ *      saveTo($tplName,$filePath)          : To save the rendered content into a file
+ *      stripComments(bool)                 : To strip the HTML comments off the pages
  * 
- * == Remove / Clearing 
+ **** Remove / Clearing 
  *      removeTemplate($tplName)            : remove a template that was created with addFile or addTemplate
  *      clearVars()                         : To reset all vars
  *      clearAll                            : Unset everything
  * 
- * == ADVANCED
+ **** ADVANCED
  *      Simplate::setFilter($name,\Closure function(){}) 
  *                                          Allow to create filter methods that will be applied on the variables in the template
  * 
  *      allowMacros(bool)                   : Set to true to allow macros in the template file
  *                                            When set, it can be called this way: <spl-macro $macro="$value" />
+ **** Exception handling
+ *    Upon an error, Simplate will throw an Excetion which gives details on the error
  * 
+ *  
  * Min Requirement: PHP 5.3 and up
  */
 //------------------------------------------------------------------------------
@@ -298,14 +326,14 @@ Class Simplate {
     private $clearUnassigned = true;
         
     
-    /** STATIC PROPERTIES **/
-    
+ 
     /*
      * Most hard core regexp used. 
-     * I broke my head over the wall to get most of these regex to work... finally got them
+     * I broke my head over the wall to get most of these regex to work... finally got them.
+     * If you find a better solution, go for it, and please share :)
      * @var Array
      */
-    private static $Regexp = array(
+    private $REGEXP = array(
         /**
          * Validate all variable names
          * Must start with letter or underscore. First letter must be capitalize. may contains only letters and numbers
@@ -376,7 +404,32 @@ Class Simplate {
          * To strip html comments. 
          * But will leave conditionals comments such as <!-- [if IE 7]><![endif]-->
          */
-        "stripHTMLComments"=> "/<!--(?!\s*(?:\[if [^\]]+]|<!|>))(?:(?!-->).)*-->/Uis"
+        "stripHTMLComments"=> "/<!--(?!\s*(?:\[if [^\]]+]|<!|>))(?:(?!-->).)*-->/Uis",
+        
+        
+        /**
+         * To extract inside literal tag
+         */
+        "literal"=>"/<spl\-literal>(.*?)<\/spl\-literal>/si",
+        
+        
+        /**
+         * To extract include tag
+         */
+        "include"=>'/<spl\-include\s+(.*?)\s*\/>/i',
+        
+        
+        
+        /**
+         * Regexp to catch <SPL-EACH>
+         */
+        "each"=>array(
+            "catchAll"=>"/<spl-each[^>]*>(?:(?:(?:(?!<\/?spl-each).)*|(?R))?)+<\/spl-each>/si",
+            
+            "catchInner"=>"/<spl-each[^>]*>(?:(?:(?!<\/?spl-each).)*|(?R))?<\/spl-each>/si",
+            
+            "catchSingle"=>"/<spl-each\s+@([A-Z_]{1}.*?)\s+(.*?)>(.*?)<\/spl\-each>/si"
+        )
     );
  
     
@@ -472,7 +525,7 @@ Class Simplate {
              * Invalid variable name
              * Making sure concatenated var (.VarName) pass this test
              */
-            if(!preg_match("/^\./",$keys) && !preg_match(self::$Regexp["vars"],$keys))
+            if(!preg_match("/^\./",$keys) && !preg_match($this->REGEXP["vars"],$keys))
                 throw new \Exception("Simplate Exception in ".__METHOD__." - Invalid variable name: '$keys'. Variable must start with a letter or underscore. First letter must be capitalized. The rest of the var may contain alpha numeric and underscore ");
             
             /**
@@ -498,7 +551,6 @@ Class Simplate {
      * @return Simplate 
      */
     public function assignJSON($key,Array $values){
-        
         return 
             $this->assign($key,json_encode($values));
     }
@@ -514,8 +566,6 @@ Class Simplate {
      *      <spl-include src="@KEY" />
      */
     public function addFile($key,$file,$absolutePath=false){
-        
-
         $this->templateFiles[$key] = array(
             "src"=>$file,
             "absolutePath"=>$absolutePath,
@@ -555,8 +605,7 @@ Class Simplate {
         
         if(isset($this->templateStrings[$key]))
           unset($this->templateStrings[$key]);
-        
-        
+
         return $this;
     }
     
@@ -601,13 +650,13 @@ Class Simplate {
      * @return Simplate 
      * 
      * @HTMLTAG
-     *      <spl-each {$name}>
+     *      <spl-each @{$name}>
      *          CONTENT HERE
      *      </spl-each>
      * 
      *      For nested loop
-     *      <spl-each {$name}>
-               <spl-each {$innername}>
+     *      <spl-each @{$name}>
+               <spl-each @{$innername}>
                    CONTENT HERE
                </spl-each>
      *      </spl-each>  
@@ -620,7 +669,7 @@ Class Simplate {
          * Invalid variable name
          * Making sure concatenated var (.VarName) pass this test
          */
-        if((preg_match("/\./",$name)) || (!preg_match("/\./",$name) && !preg_match(self::$Regexp["vars"],$name)))
+        if((preg_match("/\./",$name)) || (!preg_match("/\./",$name) && !preg_match($this->REGEXP["vars"],$name)))
             throw new \Exception("Simplate Exception in ".__METHOD__." - Invalid each variable name: '$name'. Variable must start with a letter and contain alpha numeric and underscore ");
 
             
@@ -735,8 +784,8 @@ Class Simplate {
 
 
     /**
-     * Literals are data that has simplate markup but we dont want to parse them but leav as is
-     * by put the data between the tags: <spl-literal> and </spl-literal>
+     * Literals are data that has simplate markup but we dont want to parse them but leave as is
+     * by putting the data between the tags: <spl-literal> and </spl-literal>
      * Programmatically you can use $this->setLiteral($content)
      * @param type $content
      * @return string 
@@ -837,10 +886,7 @@ Class Simplate {
 //------------------------------------------------------------------------------    
 //-- PROTECTED / PRIVATE METHODS -----------------------------------------------
 //------------------------------------------------------------------------------
-    
-    
-    
-    
+
     /**
      * Rteurn the content
      * @param type $templateKey
@@ -886,7 +932,7 @@ Class Simplate {
      */
     private function getAttributes($tagString){
         
-        preg_match_all("/".self::$Regexp["attributes"]."/",$tagString,$attributes_);
+        preg_match_all("/".$this->REGEXP["attributes"]."/",$tagString,$attributes_);
         
         return 
             (count($attributes_[1]) && count($attributes_[2])) ? array_combine($attributes_[1],$attributes_[2]) : array();
@@ -900,11 +946,11 @@ Class Simplate {
      */
     private function defineIterators($template){
         // Cactch all each
-        $regexpP = '/<spl-each[^>]*>(?:(?:(?:(?!<\/?spl-each).)*|(?R))?)+<\/spl-each>/si';
+        $regexpP = $this->REGEXP["each"]["catchAll"];
         // Call all inner each
-        $regexpR = '/<spl-each[^>]*>(?:(?:(?!<\/?spl-each).)*|(?R))?<\/spl-each>/si';
+        $regexpR = $this->REGEXP["each"]["catchInner"];
         // Read the current 
-        $regexpS = "/<spl-each\s+([A-Z_]{1}.*?)\s+(.*?)>(.*?)<\/spl\-each>/is";
+        $regexpS = $this->REGEXP["each"]["catchSingle"];
 
 
         preg_match_all($regexpP, $template,$matchP);
@@ -917,7 +963,7 @@ Class Simplate {
 
                 $innerHolder = array();
 
-                    // Inner each
+                    // nested each
                     preg_match_all($regexpR,$P,$matchR);
 
                     if(count($matchR[0])){
@@ -959,7 +1005,6 @@ Class Simplate {
                           $childData["eachIndex"] = $cName;
                           $childData["replacementKey"] = $repKey;
                           $childData["parentLimit"] = isset($attributes["limit"]) ? $attributes["limit"] : 0;
-                          $childData["parentIndex"] = $this->definedIterationsCount;
 
                           $this->definedIterations[$cName][] = $childData;
                           $this->definedIterations["_replacementKeys"][] = $repKey;
@@ -974,7 +1019,6 @@ Class Simplate {
                                                       "attributes"=>$attributes,
                                                       "innerContent"=>$innerContent,
                                                       "eachIndex"=>$parentName,
-                                                      "index"=>$this->definedIterationsCount
                                                 );           
 
               $template = str_replace($matchP[0][$iP],$replacementKey,$template);
@@ -996,7 +1040,7 @@ Class Simplate {
      */
     private function defineLiterals($content=""){
         
-        $regexp = "/<spl\-literal>(.*?)<\/spl\-literal>/is";
+        $regexp = $this->REGEXP["literal"];
 
         preg_match_all($regexp,$content,$matches);
 
@@ -1143,7 +1187,7 @@ Class Simplate {
 
        $Vars = (count($Scope)) ? $Scope : $this->Vars;
 
-        if(preg_match_all(self::$Regexp["varsMod"],$template,$matches)){
+        if(preg_match_all($this->REGEXP["varsMod"],$template,$matches)){
       
             foreach($matches[0] as $v){
 
@@ -1153,11 +1197,11 @@ Class Simplate {
                  *      {@Name.toUpper().replace(.com,.net).escapeHTML()} chain
                  * 
                  */
-                if(preg_match(self::$Regexp["varsFilters"],$v,$mA)){
+                if(preg_match($this->REGEXP["varsFilters"],$v,$mA)){
                     
                     $var = $this->getVar($mA[1],$Scope);
                     
-                    if(preg_match_all(self::$Regexp["chainedMethods"],$mA[2],$filters)){
+                    if(preg_match_all($this->REGEXP["chainedMethods"],$mA[2],$filters)){
                         foreach($filters[1] as $fK=>$filter)
                             $var = $this->applyFilter($var,$filter,explode(",",$filters[2][$fK]));
                     }
@@ -1168,7 +1212,7 @@ Class Simplate {
                 /**
                  * Variable without filters
                  */
-                else if(preg_match(self::$Regexp["varsOuterScope"],$v,$mA))
+                else if(preg_match($this->REGEXP["varsOuterScope"],$v,$mA))
                     $Vars[$mA[0]] = $this->getVar($mA[1],$Scope);
                 
             }
@@ -1195,7 +1239,7 @@ Class Simplate {
      */
     protected function stripHTMLComments($content){
         return 
-            preg_replace(self::$Regexp["stripHTMLComments"],"",$content);
+            preg_replace($this->REGEXP["stripHTMLComments"],"",$content);
     }
     
     
@@ -1224,7 +1268,7 @@ Class Simplate {
          * @todo The regexp to get the filename can't get file with "../.."
          */
         $matches = array();
-        if (preg_match_all ('/<spl\-include\s+(.*?)\s*\/>/i',$template,$matches)) {      
+        if (preg_match_all ($this->REGEXP["include"],$template,$matches)) {      
             
             foreach($matches[1] as $mk=>$att){
                 
@@ -1262,10 +1306,10 @@ Class Simplate {
      * @return string 
      * 
      * @example
-     *      <spl-if Age.lt(18)>
+     *      <spl-if @Age.lt(18)>
      *          You can't join because you are under age
      * 
-     *          <spl-elseif Age.lt(21)>
+     *          <spl-elseif @Age.lt(21)>
      *              You can't drink beer because you are in USA
      * 
      *          <spl-else>
@@ -1300,12 +1344,12 @@ Class Simplate {
                  * <spl-if Age.gte(18) > // Age >= 18      
                  */
 
-                if (preg_match(self::$Regexp["splIfMethods"],$line,$regs)) {
+                if (preg_match($this->REGEXP["splIfMethods"],$line,$regs)) {
                    
                     $methodEvaled = false;
                     $var = $this->getVar($regs[2],$Scope);
 
-                    if(preg_match_all(self::$Regexp["chainedMethods"],$regs[3],$filters)){
+                    if(preg_match_all($this->REGEXP["chainedMethods"],$regs[3],$filters)){
                        
                        
                         $totalFilters = count($filters[1]);
@@ -1823,7 +1867,7 @@ Class Simplate {
              */
             if($this->allowMacros == true){
     
-                if(preg_match_all("/<spl\-macro ".self::$Regexp["attributes"]."+\s*\/>/i",$this->templates[$ttK],$Macros)){
+                if(preg_match_all("/<spl\-macro ".$this->REGEXP["attributes"]."+\s*\/>/i",$this->templates[$ttK],$Macros)){
 
                     foreach($Macros[1] as $mK=>$macro){
                         
