@@ -24,15 +24,16 @@
  * @license     LGPL
  * @copyright   Copyright (c) 2011 - Mardix
  * @since       1.x May 1 2011,
- *              2.0 Feb 21 2011
+ *              2.0 Mar 1 2012
  * 
  * @required    PHP 5.3 or later
  * 
  * @version     2.0
- * @LastUpdate  Feb 21 2012
+ * @LastUpdate  Mar 1 2012
  *              - Major update. Will break some 1.x features
  *              - All variables are called by @Var, @:Var or @#Var, either in {} or <spl-tag>
  *              - <spl-each> can be nested for loop
+ *              - <spl-each> requires the parameter name to access the name of the var to loop. <spl-each
  *              - $this->addFile() : No exception is thrown when adding a new file to an existing key. It just replaces it.
  *              - <spl-if> condition can be placed inside of <spl-each>
  *              - new template filter: .calculate() to do some basic math operation
@@ -79,19 +80,19 @@
  * 
  ****** Loops
  *      <spl-each> : Loop 
- *              <spl-each @eachname >
+ *              <spl-each name="@eachname" >
  *          
  *              </spl-each>
  * 
  *      
  *      <spl-each> : Nested each
- *              <spl-each @eachname >
+ *              <spl-each name="@eachname" >
  *          
- *                  <spl-each @innereachname >
+ *                  <spl-each name="@innereachname" >
  *                      CONTENT HERE
  *                  </spl-each>
  * 
- *                  <spl-each @innereachname2 >
+ *                  <spl-each name="@innereachname2" >
  *                      CONTENT HERE 2
  *                  </spl-each>
  *  
@@ -134,7 +135,7 @@
  * 
  *      Note:
  *      <spl-each> only access @Varname, no @:Varname or @#Varname
- *      <spl-each @Loop >
+ *      <spl-each name="@Loop" >
  * 
  *** COMMENTS:
  *     There is no special tags for commenting. You can use the standard HTML commenting tag <!-- --> 
@@ -156,7 +157,7 @@
  *          Each attributes are key=value
  *          <spl-include src="../../file.tpl" absolute='true' />
  * 
- *          <spl-each tweets limit="5" >
+ *          <spl-each name="Tweets" limit="5" >
  * 
  *          </spl-each>
  * 
@@ -187,9 +188,8 @@
  * 
  *      setDir($dirPath)                    : set the root dir
  *      assign($key,$value)                 : assign variables. Previously set var can be concat by prefixing the $keyName with a dot: $this->assign(".KeyName","Value")
- *      assignJSON($key,$ArrayData)         : Same as assign, except in does json_encode to transform the array to json
- *      addFile($tplName,$filename)         : add a template file. Can be called in the template: <spl-include src="@TemplateName" />
- *      addTemplate($tplName,$Content)      : To add a content as template.
+ *      addTemplate($tplName,$filename)     : add a template file. Can be called in the template: <spl-include src="@TemplateName" />
+ *      addInlineTemplate($tplName,$Content): To add a content as template.
  *      each($name,$ArrayData)              : Create a loop. If there is an array inside of ArrayData, it will create an inner loop  
  *      render($tplName)                    : To render the template as a string. Use print to print it on the screen
  *      setLiteral($content)                : To leave Simplate tag as is in the content
@@ -207,6 +207,7 @@
  * 
  *      allowMacros(bool)                   : Set to true to allow macros in the template file
  *                                            When set, it can be called this way: <spl-macro $macro="$value" />
+ * 
  **** Exception handling
  *    Upon an error, Simplate will throw an Excetion which gives details on the error
  * 
@@ -218,14 +219,9 @@
 //------------------------------------------------------------------------------
 
 Class Simplate {
-    
-    /**
-     * The template system's name and version
-     * @var String
-     */
-    public static $NAME = "Simplate";
-    public static $VERSION = "2.0";
 
+    CONST NAME = "Simplate";
+    CONST VERSION = "2.0";
    
     /**
      * The directory holding all the templates
@@ -428,7 +424,7 @@ Class Simplate {
             
             "catchInner"=>"/<spl-each[^>]*>(?:(?:(?!<\/?spl-each).)*|(?R))?<\/spl-each>/si",
             
-            "catchSingle"=>"/<spl-each\s+@([A-Z_]{1}.*?)\s+(.*?)>(.*?)<\/spl\-each>/si"
+            "catchSingle"=>"/<spl-each\s+(.*?)>(.*?)<\/spl\-each>/si" // <spl-each name='@eachName'></spl-each>
         )
     );
  
@@ -544,16 +540,6 @@ Class Simplate {
         return $this;
     }
 
-    /**
-     * Assign values as json. A shortcut to create json data
-     * @param type $key - The name of the key
-     * @param array $values - The array to turn into json
-     * @return Simplate 
-     */
-    public function assignJSON($key,Array $values){
-        return 
-            $this->assign($key,json_encode($values));
-    }
     
     /**
      * To add a template file. This template can also be included in the template with: 
@@ -565,7 +551,7 @@ Class Simplate {
      * @HTMLTAG
      *      <spl-include src="@KEY" />
      */
-    public function addFile($key,$file,$absolutePath=false){
+    public function addTemplate($key,$file,$absolutePath=false){
         $this->templateFiles[$key] = array(
             "src"=>$file,
             "absolutePath"=>$absolutePath,
@@ -586,7 +572,7 @@ Class Simplate {
      * @HTMLTAG
      *      <spl-include src="@KEY" />
      */
-    public function addTemplate($key,$Content){
+    public function addInlineTemplate($key,$Content){
 
         $this->templateStrings[$key] = $Content;
         
@@ -634,7 +620,7 @@ Class Simplate {
         $content = $this->getContent($templateKey);
         
         if(!file_put_contents($fileName,$content)) 
-           throw new Exception("Unable to save to: {$fileName}");
+           throw new Exception("Unable to save template key '{$templateKey}' to: {$fileName}");
         
         return
             true;
@@ -692,7 +678,7 @@ Class Simplate {
                         * <spl-ineach >
                         */
                        if(is_array($Vv))
-                           $newData[$K]["__each__"][$Vk] = $this->inEach($Vv,"{$name}.{$K}");
+                           $newData[$K]["__each__"][$Vk] = $this->nestedEach($Vv,"{$name}.{$K}");
 
                        else
                            $newData[$K][$this->formatVar($Vk)] = $Vv;
@@ -704,7 +690,7 @@ Class Simplate {
                  */
                 else{
                     $ln = $this->iterators["__meta__"][$name]["count"]?:0;
-                    $newData[$name]["__each__"][$K] = $this->inEach($V,"{$name}.{$ln}");;
+                    $newData[$name]["__each__"][$K] = $this->nestedEach($V,"{$name}.{$ln}");;
                 }
             }
 
@@ -753,34 +739,6 @@ Class Simplate {
         
         return $this;
     }   
-    
-    /**
-     * 
-     * @param array $data
-     * @param type $parent
-     * @return array 
-     */
-    private function inEach(Array $data,$parent){
-        
-           $nD = array();
-
-           foreach($data as $i=>$entries){
-               $nD[$i][$this->formatVar('#')] = $parent;
-               
-               foreach($entries as $k=>$v){
-                  if(is_array($v))
-                      $nD["__each__"][$k][] = $this->inEach($v,$parent.".$k.{$i}");
-                      
-                  else
-                    $nD[$i][$this->formatVar($k)] = $v; 
-               }
-               
-           }
-               
-           return
-            $nD;        
-    }
-    
 
 
     /**
@@ -904,6 +862,31 @@ Class Simplate {
     
     
     /**
+     * To process nested each
+     * @param array $data
+     * @param type $parent
+     * @return array 
+     */
+    private function nestedEach(Array $data,$parent){
+        
+           $nD = array();
+
+           foreach($data as $i=>$entries){
+               $nD[$i][$this->formatVar('#')] = $parent;
+               
+               foreach($entries as $k=>$v){
+                  if(is_array($v))
+                      $nD["__each__"][$k][] = $this->nestedEach($v,$parent.".$k.{$i}");
+                      
+                  else
+                    $nD[$i][$this->formatVar($k)] = $v; 
+               }
+           }
+           return
+            $nD;        
+    }    
+    
+    /**
      * Get the template's content
      * @param string $filename - The filename relative to root. If $absolutePath is true, it will get it from path
      * @param bool $mustExist - If file must exits for content, if it doesnt exist it will throw an excption
@@ -966,7 +949,12 @@ Class Simplate {
                     // nested each
                     preg_match_all($regexpR,$P,$matchR);
 
-                    if(count($matchR[0])){
+                    
+                    $c = count($matchR[0]);
+                    /**
+                     * To make sure that single each without nested each is not interpreted as nested each 
+                     */
+                    if(($c > 1) || ($c==1 && $matchR[0][0]!=$P)){
 
                         foreach($matchR[0] as $iR=>$R){
 
@@ -976,11 +964,13 @@ Class Simplate {
 
                             preg_match($regexpS, $R,$matchSR);
                             
-                                $childName = $matchSR[1];
+                                $cAttributes = $this->getAttributes($matchSR[1]);
+                                $childName = $this->varName($cAttributes["name"]);
+                                
                                 $innerHolder[$childName] = array(
                                       "replacementKey"=>$replacementKey,
-                                      "attributes"=>$this->getAttributes($matchSR[2]),
-                                      "innerContent"=>$matchSR[3],
+                                      "attributes"=>$cAttributes,
+                                      "innerContent"=>$matchSR[2],
                                 ); 
                         }// R
 
@@ -989,11 +979,11 @@ Class Simplate {
                   preg_match($regexpS, $P,$matchSP); 
 
                     $replacementKey = "_ITERATORS.PARENT_{$this->definedIterationsCount}";
-                 
-                    $parentName = $matchSP[1];
-                    $innerContent = $matchSP[3];
-                    $attributes = $this->getAttributes($matchSP[2]);
-                    
+
+                    $attributes = $this->getAttributes($matchSP[1]);
+                    $parentName = $this->varName($attributes["name"]);
+                    $innerContent = $matchSP[2];
+                   
                     $this->definedIterations["_replacementKeys"][] = $replacementKey;
 
                   if(count($innerHolder)){
@@ -1195,7 +1185,6 @@ Class Simplate {
                  * Variable that use the filter methods
                  * i.e: {@Name.toUpper()}
                  *      {@Name.toUpper().replace(.com,.net).escapeHTML()} chain
-                 * 
                  */
                 if(preg_match($this->REGEXP["varsFilters"],$v,$mA)){
                     
@@ -1433,6 +1422,16 @@ Class Simplate {
         return "{@{$varName}}";
     }
 
+    
+    /**
+     * To return the raw var name of a formatted varname. I guess it's nicely said... lol
+     * @param type $formattedVarName
+     * @return string 
+     */
+    protected function varName($formattedVarName){
+        return
+            str_replace(array("@","{","}"),"",$formattedVarName);
+    }
     
     
     /**
@@ -1810,8 +1809,7 @@ Class Simplate {
         /** 
          * Last call for alcohol before page is rendered
          */    
-        $definedIterationsRepVals = array_values($this->definedIterations["_replacementKeys"]);
-        
+
         foreach($this->templates as $ttK=>$ttV){
 
             $matches = array();
