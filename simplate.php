@@ -13,7 +13,7 @@
  *                  and nested loops, etc
  *              For designers, it has a very low learning curve because it uses HTML-like syntax 
  *                  for example {@VarName} to show a var that was assigned, 
- *                  <spl-if Age.is()> to execute some script and more 
+ *                  <spl-if @Age.is(18)> to execute some script and more 
  *                  All variables become pseudo object and can be extended by built-in filters 
  *                  or filters you created yourself like {@VarName.toUpper()} or can be chained down like
  *                  {@VarName.replace(.com,.net).toUpper().truncate(15)} or in a <spl-if> statement like <spl-if @Text.length().gt(4)>
@@ -33,10 +33,15 @@
  *              - Major update. Will break some 1.x features
  *              - All variables are called by @Var, @:Var or @#Var, either in {} or <spl-tag>
  *              - <spl-each> can be nested for loop
- *              - <spl-each> requires the parameter name to access the name of the var to loop. <spl-each
+ *              - <spl-each> requires the attribute name to access the name of the var to loop. <spl-each
  *              - $this->addFile() : No exception is thrown when adding a new file to an existing key. It just replaces it.
  *              - <spl-if> condition can be placed inside of <spl-each>
- *              - new template filter: .calculate() to do some basic math operation
+ *              - new template filter: .calculate() to do some basic math operation. i.e {@Number.calculate(*3,+2,-1,/2.5)}
+ *              - new test method: .in() to evaluate if value is in the set, ie: <spl-if @City.in(Charlotte,Atlanta,Greenville)
+ *              - no longer contains macro. Macros are replaced by CMD. 
+ *              - setLiteral has been changed to toRaw(), <spl-raw> 
+ *              - changed stripComments to stripHTMLComments
+ *              - new getEach() return the data for an each variable
  *              - Refactoring
  *                        
  * 
@@ -106,14 +111,14 @@
  *              <spl-include src="@templateKey" /> : Include a template defined from php
  * 
  *    
- ***** Literal, to not parse the content
- *     <spl-literal>    : To put literal Simplate tags that will be returned as is, therefor will not be parsed and be left as is
- *                  <spl-literal>
+ ***** Raw, to not parse the content
+ *     <spl-raw>    : To put raw Simplate tags that will be returned as is, therefor will not be parsed and be left as is
+ *                  <spl-raw>
  *                      {@TagName}
  *                      <spl-if @TagName.is(Jose) >
  *                              Hi Rihanna!
  *                      </spl-if>
- *                  </spl-literal>
+ *                  </spl-raw>
  *          
  *            It will return it as
  *                      {@TagName}
@@ -137,44 +142,30 @@
  *      <spl-each> only access @Varname, no @:Varname or @#Varname
  *      <spl-each name="@Loop" >
  * 
- *** COMMENTS:
- *     There is no special tags for commenting. You can use the standard HTML commenting tag <!-- --> 
- *     If you want to remove all html comments, use <spl-macro cmd="stripComments" /> or Simplate::stripComments()
- * 
- * 
- *** DO MORE WITH MACROS
- *      If $this->setMacro is set, you will be able to execute some command to be execute from the PHP side
- * 
- *      - <spl-macro debug="vars" /> display the variables that were assigned
- *      - <spl-macro debug="errors" /> display all errors for unassigned vars, undefined filters etc
- *      - <spl-macro cmd="toJSON:$eachName" /> Will return the JSON value of the $eachName that was assigned during $this->each()
- *      - <spl-macro cmd="stripComments" /> Strip all HTML comments off the page
- * 
  * 
  **** ADVANCED
  * 
- *      ATTRIBUTES
- *          Each attributes are key=value
- *          <spl-include src="../../file.tpl" absolute='true' />
+ *      TAGS with Attributes
+ *          Most <spl-tags> require attributes. Attributes are set in key="value" pair like normal HTML attributes
+ *          i.e: 
+ *              <spl-include src="../../file.tpl" absolute='true' />
+ *              <spl-each name="Tweets" limit="5" >
+ *              </spl-each>
  * 
- *          <spl-each name="Tweets" limit="5" >
+ *      CMDs
+ *         CMD or command are special instructions to be interpreted on the PHP side, such toJSON transform an each to JSON for javasript;
+ *          debug to display errors etc. 
+ *         CMD require the simplate tag <spl-cmd /> to be used included attributes name and value. ie: <spl-cmd name='cmdName' value='valueToExecute' /> 
+ *         
+ *         Built-in CMDs
+ *          toJSON : <spl-cmd name="toJSON" value="eachName" /> to return an each variable name to JSON 
+ *          debug : <spl-cmd name="debug" /> will display in the template page all errors encoutered
+ *          dumpVars: <spl-cmd name="dumpVars" /> to dump all assigned vars or <spl-cmd name="dumpVars" value="eachName" /> to dump all the variables assigned to this value
+ *          stripHTMLComments: <spl-cmd name="stripHTMLComments" /> will remove all html comments on the page. This can also be set by using $this->stripHTMLComments()
  * 
- *          </spl-each>
- * 
- *      MACROS
- *         Macros are instructions from the template that will execute some commands on the PHP side, such as show all debug errors
- *         Syntax:
- *          <spl-macro $macro="$options" />
- * 
- *              Available $macro:
- *                                debug: will display debug info on the page
- *                                     debug="$option" (errors | vars | vars:$eachName | vars:$eachName.$ineachName)
- * 
- *                                 cmd: allow to execute some command that will affect the page
- *                                      cmd="options" (stripComments | toJSON:$eachName)
- *                          
- *                                 To turn <spl-each>  into JSON you can use this command: <spl-macro cmd="toJSON:$eachName" />
- * 
+ *     COMMENTS
+ *          There is no special tags for commenting. You can use the standard HTML commenting tag <!-- --> 
+ *          If you want to remove all html comments, use <spl-cmd name="stripHTMLComments" /> or Simplate::stripHTMLComments() 
  *------------------------------------------------------------------------------
  *  
  *+++++++++++++++++++++++++++ FOR DEVELOPERS (PHP) +++++++++++++++++++++++++++++
@@ -192,9 +183,9 @@
  *      addInlineTemplate($tplName,$Content): To add a content as template.
  *      each($name,$ArrayData)              : Create a loop. If there is an array inside of ArrayData, it will create an inner loop  
  *      render($tplName)                    : To render the template as a string. Use print to print it on the screen
- *      setLiteral($content)                : To leave Simplate tag as is in the content
+ *      setRaw($content)                    : To leave Simplate tag as is in the content
  *      saveTo($tplName,$filePath)          : To save the rendered content into a file
- *      stripComments(bool)                 : To strip the HTML comments off the pages
+ *      stripHTMLComments(bool)             : To strip the HTML comments off the pages. Can be executed on the template side by calling <spl-cmd name="stripHTMLComments" />
  * 
  **** Remove / Clearing 
  *      removeTemplate($tplName)            : remove a template that was created with addFile or addTemplate
@@ -204,9 +195,6 @@
  **** ADVANCED
  *      Simplate::setFilter($name,\Closure function(){}) 
  *                                          Allow to create filter methods that will be applied on the variables in the template
- * 
- *      allowMacros(bool)                   : Set to true to allow macros in the template file
- *                                            When set, it can be called this way: <spl-macro $macro="$value" />
  * 
  **** Exception handling
  *    Upon an error, Simplate will throw an Excetion which gives details on the error
@@ -234,15 +222,6 @@ Class Simplate {
      * @var Array
      */
     private $Vars = array();
-
-    /**
-     * To allow <spl-macro /> to be executed from the template
-     * For performance set to false.
-     * Best way to use it it's when developement phase 
-     * @var bool 
-     */
-    protected $allowMacros = false;
-    
     
     /**
      * To strip HTML comments
@@ -306,14 +285,14 @@ Class Simplate {
      * Count total literals
      * @var int
      */
-    private $definedLiteralsCount = 0;
+    private $definedRawsCount = 0;
     
     
     /**
-     * Holds the defined literals.
+     * Holds the defined raws.
      * @var Array 
      */
-    private $definedLiterals = array();
+    private $definedRaws = array();
     
     /**
      * To clean unassigned vars
@@ -338,10 +317,11 @@ Class Simplate {
         
         /**
          * Extract Name.Method() from 
-         *  <SPL-IF @Name.Method() >
+         *  <SPL-IF @Name.Test() >
          *  <SPL-IF @Age.Method().Chained().Test() >
          *  <SPL-IF @#Age.Method().Chained().Test() >
          *  <SPL-IF @:Age.Method().Chained().Test() >
+         *  <SPL-IF !@:Age.Method().Chained().Test() > to negate the answer
          */
         "splIfMethods"=>"/<spl-(if|elseif)\s+@(?:([:#\w]*)?\.)+((?:[\w]+)(?:\((?:.*?)\))+|(?R))\s*>/i",
        
@@ -404,9 +384,9 @@ Class Simplate {
         
         
         /**
-         * To extract inside literal tag
+         * To extract inside raw tag
          */
-        "literal"=>"/<spl\-literal>(.*?)<\/spl\-literal>/si",
+        "raw"=>"/<spl\-raw>(.*?)<\/spl\-raw>/si",
         
         
         /**
@@ -471,7 +451,7 @@ Class Simplate {
                 $this->templates,
                 $this->iterators,
                 $this->definedIterations,
-                $this->definedLiterals
+                $this->definedRaws
             );
     }
 
@@ -620,7 +600,7 @@ Class Simplate {
         $content = $this->getContent($templateKey);
         
         if(!file_put_contents($fileName,$content)) 
-           throw new Exception("Unable to save template key '{$templateKey}' to: {$fileName}");
+           throw new Exception("Simplate Exception in ".__METHOD__." - Unable to save template key '{$templateKey}' to: {$fileName}");
         
         return
             true;
@@ -636,13 +616,13 @@ Class Simplate {
      * @return Simplate 
      * 
      * @HTMLTAG
-     *      <spl-each @{$name}>
+     *      <spl-each name="@{$name}">
      *          CONTENT HERE
      *      </spl-each>
      * 
      *      For nested loop
-     *      <spl-each @{$name}>
-               <spl-each @{$innername}>
+     *      <spl-each name="@{$name}">
+               <spl-each name="@{$innername}">
                    CONTENT HERE
                </spl-each>
      *      </spl-each>  
@@ -742,40 +722,24 @@ Class Simplate {
 
 
     /**
-     * Literals are data that has simplate markup but we dont want to parse them but leave as is
-     * by putting the data between the tags: <spl-literal> and </spl-literal>
-     * Programmatically you can use $this->setLiteral($content)
+     * toRaw allow you to leave any simplate tags as is and not change them when parsing the template
+     * by putting the data between the tags: <spl-raw> and </spl-raw>
+     * Programmatically you can use $this->toRaw($content)
      * @param type $content
      * @return string 
      */ 
-    public function setLiteral($content=""){
+    public function toRaw($content=""){
         return
-            $this->defineLiterals("<spl-literal>".$content."</spl-literal>");
+            $this->defineraws("<spl-raw>".$content."</spl-raw>");
     }
-    
-    
-    /**
-     * Allow to use macros from the templae
-     * macros execute certain php instructions that will affect the page
-     * Some macros:
-     *          debug -> will display debugging info on the page 
-     *          cmd -> execute some commands on the php side
-     * @param bool $allow
-     * @return Simplate 
-     */
-    public function allowMacros($allow=true){
-        
-        $this->allowMacros = $allow;
-        
-        return $this;
-    }
+
     
     /**
      * To strip html comments off
      * @param bool $stripHTMLComments
      * @return Simplate 
      */
-    public function stripComments($stripHTMLComments = true){
+    public function stripHTMLComments($stripHTMLComments = true){
         
         $this->stripHTMLComments = $stripHTMLComments;
         
@@ -839,7 +803,46 @@ Class Simplate {
     
     
     
-    
+    /**
+     * To get the array of the each that was created with $this->each(). It will also include nested each. 
+     * This method helps you retrieved data that was created and also internally 
+     * @param type $eachKey
+     * @return Array 
+     */
+    public function getEach($eachKey){
+            $that = $this;
+
+           // Must be data from the iterators, set with $this->each()
+            return 
+              array_map(function($a) use ($that){
+                $d = array();
+                foreach($a as $k=>$v){
+
+                    if($k != "__each__"){
+                       $d[$that->varName($k)] = $v; 
+                    }
+                    else if($k == "__each__" && is_array($v)){
+
+                       foreach($v as $kk=>$kv){
+
+                           $d[$kk] = array_map(function($aa) use ($that){
+
+                               $b = array();
+
+                               foreach($aa as $aak=>$aav){
+                                   $b[$that->varName($aak)] = $aav;
+                               }
+                               
+                               unset($b["#"]);
+                               return
+                                $b;
+                           },$kv);
+                       } 
+                    }
+                }
+                return $d;
+            },$this->iterators[$this->varName($eachKey)] ?: array());
+    }    
     
 //------------------------------------------------------------------------------    
 //-- PROTECTED / PRIVATE METHODS -----------------------------------------------
@@ -854,12 +857,41 @@ Class Simplate {
 
        $this->parseAll();
        
-            if(isset($this->templates[$templateKey]))
-                   return $this->templates[$templateKey];
+            if(isset($this->templates[$templateKey])){
+                
+                /**
+                 * Everything is ready, parse the cmds from the template side
+                 */                
+                $content = $this->parseCmds($this->templates[$templateKey]);
+
+
+                /**
+                 * Strip HTML Comments, if it was instructed from PHP
+                 */
+                if($this->stripHTMLComments)
+                    $content = $this->_stripHTMLComments($content);
+
+                /**
+                 * Clear all unparsed iterators and unassigned vars
+                 */
+                if($this->clearUnassigned)                
+                    $content = str_replace(array_values($this->definedIterations["_replacementKeys"]),array(""),preg_replace("/{@\w+}/i","",$content));
+
+                /**
+                 * Parse literals 
+                 */
+                if($this->definedRawsCount)
+                    $content = $this->parseRaws($content);
+
+                return $content;
+            }
+                   
+            
             else
                 throw new \Exception("Simplate Exception in ".__METHOD__." - Can't get content for template key: '{$templateKey}' because it doesn't exist");
     }
     
+//------------------------------------------------------------------------------    
     
     /**
      * To process nested each
@@ -885,6 +917,7 @@ Class Simplate {
            return
             $nD;        
     }    
+
     
     /**
      * Get the template's content
@@ -913,7 +946,7 @@ Class Simplate {
      * @param string $tagString
      * @return Array - containg key/value of tag/value -> array("absolute"=>true)
      */
-    private function getAttributes($tagString){
+    protected function getAttributes($tagString){
         
         preg_match_all("/".$this->REGEXP["attributes"]."/",$tagString,$attributes_);
         
@@ -1023,14 +1056,14 @@ Class Simplate {
     
     /**
      * Literals are data that has simplate markup but we dont want to parse them but leave as is
-     * by putting the data between the tags: <spl-literal> and </spl-literal>
-     * Programmatically you can use $this->setLiteral($content)
+     * by putting the data between the tags: <spl-raw> and </spl-raw>
+     * Programmatically you can use $this->toRaw($content)
      * @param type $content
      * @return type 
      */
-    private function defineLiterals($content=""){
+    private function defineraws($content=""){
         
-        $regexp = $this->REGEXP["literal"];
+        $regexp = $this->REGEXP["raw"];
 
         preg_match_all($regexp,$content,$matches);
 
@@ -1040,11 +1073,11 @@ Class Simplate {
             
             for($i=0;$i<$totalMatches;$i++){
                 
-                ++$this->definedLiteralsCount;
+                ++$this->definedRawsCount;
                 
-                $name = "_DEFINEDLITERALS_{$this->definedLiteralsCount}";
+                $name = "_definedRaws_{$this->definedRawsCount}";
                 
-                $this->definedLiterals[$name] = $matches[1][$i];
+                $this->definedRaws[$name] = $matches[1][$i];
                 
                 $content = str_replace($matches[0][$i],$name,$content);
 
@@ -1062,9 +1095,9 @@ Class Simplate {
      * @param type $content
      * @return type 
      */
-    private function parseLiterals($content){
+    private function parseRaws($content){
         return
-            str_replace(array_keys($this->definedLiterals),array_values($this->definedLiterals),$content);
+            str_replace(array_keys($this->definedRaws),array_values($this->definedRaws),$content);
         
     }
     
@@ -1226,7 +1259,7 @@ Class Simplate {
      * @param String $content
      * @return String 
      */
-    protected function stripHTMLComments($content){
+    protected function _stripHTMLComments($content){
         return 
             preg_replace($this->REGEXP["stripHTMLComments"],"",$content);
     }
@@ -1240,7 +1273,7 @@ Class Simplate {
      */
     private function parseTemplate($template,Array $Scope = array()) {
 
-        $template = $this->defineLiterals($template);
+        $template = $this->defineraws($template);
         
         /**
          * Parse the condition statements
@@ -1412,7 +1445,106 @@ Class Simplate {
     }        
 
 
+    /**
+     * To exeucte pre-built command on the templates side that will communicate with PHP
+     * @param type $template
+     * @return string 
+     */
+    private function parseCmds($template){
+        
+                if(preg_match_all("/<spl-cmd\s+(.*?)\s*\/>/i",$template,$cmds)){
 
+                    foreach($cmds[1] as $i=>$expression){
+                        
+                        $attributes = $this->getAttributes($expression);
+                        $aName = strtolower($attributes["name"]);
+                        $aValue = (isset($attributes["value"])) ? $attributes["value"] : "";
+                        $replacement = "";
+                        
+                        switch($aName){
+                            
+                            // stripHTMLComments, to strip comments off the page
+                            case "striphtmlcomments":
+                                $this->stripHTMLComments(($aValue && strtolower($aValue)=="false") ? false : true);
+                            break;
+
+                        
+                            // debug, to debug errors
+                            case "debug":
+
+                                $debug = "";
+                               if(preg_match_all("/{@\w+}/i",$template,$unassignedVars)){
+                                    foreach($unassignedVars[0] as $unV)
+                                        $this->__debugger(" {$unV} : unparsed variable in template key: {$ttK}"); 
+                                    
+                                    foreach($this->debugger as $dV)
+                                        $debug .= "\t{$dV}\n";     
+                                        
+                                    $replacement = "<pre>\nSimplate CMD: debug :\n{$debug}\n</pre>";     
+                               }
+
+                               else{
+                                   $replacement = "<pre>\nSimplate CMD: debug : 0 \n</pre>";
+                               }
+   
+                                                                 
+                            break;
+   
+                            
+                            // dumpVars, To dump the vars that were assigned. If value is assigned, it will get the iterations
+                            case "dumpvars":
+                                $dV = "";
+                                if($aValue){
+                                
+                                    $data = $this->getEach($aValue);
+                                   
+                                    $varReduceTab = 1;
+                                    $varReduce = function($res,$Arr)use(&$varReduce,&$varReduceTab){
+                                                    $Tab = str_repeat("\t",$varReduceTab);
+                                                    foreach($Arr as $aK=>$aV){
+                                                        if(is_array($aV)){
+                                                            $varReduceTab++;
+                                                            $res .= "\n{$Tab} -> {$aK}:\n";
+                                                            $res .= array_reduce($aV,$varReduce);
+                                                            $varReduceTab--;
+                                                        }
+                                                        else{
+                                                           $res .= "{$Tab} {$aK} => $aV\n"; 
+                                                        }
+                                                    }
+                                                    $res .= "{$Tab}-----------------------------\n";
+                                                    return
+                                                        $res;
+                                                 };
+                                     $dV = array_reduce($data,$varReduce);
+                                }
+                                else{
+                                    foreach($this->Vars as $vK=>$vV){
+                                        $dV .= "\t{$vK} : {$vV} \n";
+                                    }
+                                }
+                                
+                                $replacement = "<pre>\nSimplate CMD: dumpVars : \n {$dV} \n</pre>";
+                                
+                            break;
+                        
+
+                            // toJSON, return a loop to json
+                            case "tojson":
+                              $replacement = json_encode($this->getEach($aValue));                                
+                            break;
+
+                        }
+
+                        $template = str_replace($cmds[0][$i],$replacement,$template);
+                    }
+
+                }
+                return
+                    $template;
+     }
+     
+     
     /**
      * To format variable with the proper opening and cclosed tags
      * @param string $varName - The variable name
@@ -1428,7 +1560,7 @@ Class Simplate {
      * @param type $formattedVarName
      * @return string 
      */
-    protected function varName($formattedVarName){
+    public function varName($formattedVarName){
         return
             str_replace(array("@","{","}"),"",$formattedVarName);
     }
@@ -1519,6 +1651,11 @@ Class Simplate {
                 $res = ($keyVal != $value);
             break;
         
+            // .in(a,b,c) - To check if value is in set
+            case "in":
+                $res = in_array($keyVal,explode(",",$value));
+            break;
+        
             // .null() or .empty() - null or empty val
             case "null":
             case "empty":
@@ -1536,8 +1673,7 @@ Class Simplate {
             break;
 
         
-            // .match(keyVal) - or .contains(keyVal) contain keyval
-            case "match":
+            // .contains(keyVal) contain keyval
             case "contains":
                 $res = preg_match("~{$value}~",$keyVal);
             break;                       
@@ -1570,7 +1706,8 @@ Class Simplate {
             // .lte(number) - lesser or equal to
             case "lte":
                 $res = ($keyVal <= $value);
-            break;                     
+            break;  
+
         }
 
            return 
@@ -1713,11 +1850,9 @@ Class Simplate {
                   return $oVal;
 
             break;
-        
-        
+
         }
-        
-        
+
     }
     
     
@@ -1778,27 +1913,23 @@ Class Simplate {
         if($this->templatesParsed)
            return $this;
         
-        
         $this->templatesParsed = true;
         
-
         /**
-         * Get all the template files and parsed them
+         * Parse all templates that were loaded via addTemplate, addInlineTemplate or via <spl-include src=""> 
          */
+        //
         if(count($this->templateFiles))
             foreach($this->templateFiles as $key=>$file)
                 $this->templates[$key] = $this->parseTemplate($this->getTemplate($file["src"],$file["mustExist"],$file["absolutePath"]));
-        
-        /**
-         * Get all the templates loaded with  Simplate::addTemplate()
-         */
+        // 
         if(count($this->templateStrings))
             foreach($this->templateStrings as $key=>$content)
                 $this->templates[$key] = $this->parseTemplate($content);
                       
        
         /**
-         * Parse iterators for each and ineach
+         * Parse iterators for each in templates
          */
         $iteratorsRep = $this->parseIterators();
         if(count($iteratorsRep))
@@ -1806,16 +1937,14 @@ Class Simplate {
                 $this->templates[$tK] = $this->parseVars(str_replace(array_keys($iteratorsRep),array_values($iteratorsRep),$tV),$iteratorsRep);//str_replace($iKey,$iVal,$tV);
 
 
-        /** 
-         * Last call for alcohol before page is rendered
-         */    
-
         foreach($this->templates as $ttK=>$ttV){
 
             $matches = array();
 
             /**
-             * Include @template: <spl-include src="@keyName" />
+             * "Yo dawg, I put my template in your template" (in Xzibit voice)
+             * Include template via spl-include : <spl-include src="@keyName" />
+             * spl-include with source file is already included in parseTemplate(). This one is for src with @Tag
              */
             if (preg_match_all ( '/<spl\-include\s+(.*?)\s*\/>/i',$ttV,$matches)) {      
 
@@ -1825,291 +1954,21 @@ Class Simplate {
 
                     if(isset($attributes["src"]) && preg_match("/^@/",$attributes["src"])){
 
-                        $tpl = str_replace("@","",$attributes["src"]);
+                        $tplKey = $this->varName($attributes["src"]);
 
-                        if(isset($this->templates[$tpl]))
-                            $this->templates[$ttK] = str_replace($matches[0][$mk],$this->templates[$tpl],$this->templates[$ttK]);
+                        if(isset($this->templates[$tplKey]))
+                            $this->templates[$ttK] = str_replace($matches[0][$mk],$this->templates[$tplKey],$this->templates[$ttK]);
                         
                     }  
                 }
             }
-            
-            /**
-             * Strip HTML Comments, if it was instructed from PHP
-             */
-            if($this->stripHTMLComments == true)
-                    $this->templates[$ttK] = $this->stripHTMLComments($this->templates[$ttK]);
-            
-            
-			
-            /**
-             * Clear all unassigned vars
-             */
-            if($this->clearUnassigned){
-                
-                $this->templates[$ttK] = preg_replace("/{@\w+}/i","",$this->templates[$ttK]);
-                
-                $this->templates[$ttK] =  str_replace(array_values($this->definedIterations["_replacementKeys"]),"",$this->templates[$ttK]);
-                
-               
-            }
-
-			
-			
-            /**
-             * <spl-macro $macro='$options' />
-             * It allows to send special intructions to the PHP from the template
-             * Can be used to show all errors, strip comments etc
-             * 
-             * <spl-macro debug="errors" />
-             */
-            if($this->allowMacros == true){
-    
-                if(preg_match_all("/<spl\-macro ".$this->REGEXP["attributes"]."+\s*\/>/i",$this->templates[$ttK],$Macros)){
-
-                    foreach($Macros[1] as $mK=>$macro){
-                        
-                        $replacement = "";
-                        @list($mInstruct,$mArgs) = explode(":",$Macros[2][$mK]);
-                        $mInstruct = strtolower($mInstruct);
-                        
-                        switch($macro){
-
-                            // DEBUG: to display debug on the screen
-                            case "debug":
-                              
-                                switch($mInstruct){
-                                    
-                                    // SHOW ERRORS
-                                    case "errors":
-                                        
-                                       if(preg_match_all("/{@\w+}/i",$this->templates[$ttK],$unassignedVars))
-                                            foreach($unassignedVars[0] as $unV)
-                                                $this->__debugger(" {$unV} : unparsed variable in template key: {$ttK}"); 
-
-                                       $replacement = "{@__DEBUG:ERRORS__}";
-                                       $showErrors = true;   
-                                       
-                                    break;
-                                
-                                
-                                    // SHOW VARS
-                                    case "vars":
-
-                                         $vars = (!isset($mArgs)) 
-                                                    ? $this->Vars 
-                                                    : (isset($this->iterators[$mArgs]) 
-                                                            ? $this->iterators[$mArgs] 
-                                                            : array());
-
-                                         if(isset($vars[0]) && is_array($vars[0])){
-
-                                             $tV = array_reduce($vars,function($r,$Arr){
-                                                // each
-                                                if(!isset($Arr[0])){
-                                                    foreach($Arr as $aK=>$aV){
-                                                        $r .= "\t {$aK} => $aV\n";
-                                                    }
-                                                    $r .= "\t--\n";
-                                                }
-
-                                                //ineach
-                                                else{
-
-                                                   $r .= array_reduce($Arr,function($r1,$A1){
-
-                                                        foreach($A1 as $aK=>$aV){
-                                                            $r1 .= "\t {$aK} => $aV\n";
-                                                        }
-                                                        $r1 .= "\n";
-
-                                                       return $r1;
-                                                   }); 
-
-                                                   $r .= "\t--\n";
-                                                }
-
-                                               return $r;  
-                                             });
-                                         }
-                                         else{
-                                             foreach($vars as $vK=>$vV){
-                                                 $tV .= "\t{$vK} : {$vV} \n";
-                                             }
-                                         }
-                                         $replacement = "<pre>\nSIMPLATE DEBUG VARS: {$mArgs}\n{$tV}</pre>";                                        
-
-                                        
-                                        
-                                    break;
-                                }
-                                
-                            break;
-                            
-                            
-                            
-                            // CMD: Execute commands
-                            case "cmd":
-                                
-                                switch($mInstruct){
-                                
-                                    // Strip comments off the page
-                                    case "stripcomments":
-                                        $stripComments = true;
-                                    break;
-                                
-                                
-                                
-                                
-                                    /**
-                                     * toJSON:$eachName
-                                     * toJSON will return a data set with $this->each() into json
-                                     * It will crunch up all children with the parent, and prepare them the way they were inserted
-                                     * this macro is memory intensive, use it only when need it.
-                                     * If you want Json data, it's preferable to use $this->assignJSON()
-                                     * The reason why this was created it's because sometimes, the loop may exist buut you want to do more with  that dat
-                                     * 
-                                     */
-                                    case "tojson":
-                                       
-                                           // Must be data from the iterators, set with $this->each()
-                                           $vars = isset($this->iterators[$mArgs]) 
-                                                                ? $this->iterators[$mArgs] 
-                                                                : array();
-
-
-                                              /**
-                                               * Children are ineach data that were passed during the creation in $this->each()
-                                               * It will grab up all children, prepare them, and make them available for the parent
-                                               */
-                                              $Children = array();
-                                              if(isset($this->iterators["__meta__"][$mArgs]["children"])){
-
-                                                $childrn = array_keys($this->iterators["__meta__"][$mArgs]["children"]);
-
-                                                    foreach($childrn as $childd){
-
-                                                      $cName = end(explode(".",$childd));
-
-                                                      /**
-                                                       * Will clean up the key by removing the spl tag {@}
-                                                       */
-                                                      $Children[$cName] = array_map(function($A){
-
-                                                         return
-                                                                array_map(function($AA){
-                                                                    foreach($AA as $Ak=>$Av){
-                                                                         $nAk = str_replace(array("{@","}"),"",$Ak);
-
-                                                                         // Was included, during the parsing of the ineach, so we'll remove it
-                                                                         if($nAk!= "#")
-                                                                             $AA[$nAk] = $Av;
-                                                                        // unset the original array
-                                                                        unset($AA[$Ak]);
-                                                                    }
-                                                                    return 
-                                                                        $AA;
-                                                                 },$A);
-
-                                                      },$this->iterators[$childd]); 
-                                                    } 
-                                                }
-
-
-                                                 /**
-                                                  * Clean the main iterators, by removing spl tag {@}
-                                                  */
-                                                 $vars = array_map(function($AA){
-                                                            foreach($AA as $Ak=>$Av){
-                                                                 $nAk = str_replace(array("{@","}"),"",$Ak);
-
-                                                                 if($nAk!= "#")
-                                                                     $AA[$nAk] = $Av;
-
-                                                                unset($AA[$Ak]);
-                                                            }
-                                                            return 
-                                                                $AA ;
-                                                         },$vars);
-
-                                                 /**
-                                                  * Merge children to parents 
-                                                  */
-                                                 if(count($Children)){
-                                                     $childrenNames = array_keys($Children);
-
-                                                     foreach($childrenNames as $childName)
-                                                        foreach($vars as $vvk=>$vvv)
-                                                            $vars[$vvk] += array($childName=>$Children[$childName][$vvk]);
-                                                 }    
-
-
-                                          $replacement = json_encode($vars); 
-                                          
-                                    break;
-                                }
-
-                            break;
-                        }
-                        
-                        $this->templates[$ttK] = str_replace($Macros[0][$mK],$replacement,$this->templates[$ttK]);
-                    }
-
-                }
-            }
-            
-
-                // Remove all unparsed iterators and unaassigned vars
-               // $this->templates[$ttK] = str_replace($definedIterationsRepVals,array(""),preg_replace("/{@\w+}/i","",$this->templates[$ttK]));
 
         }
 
-        // FINAL Replacements based on allowCmds
-        if($this->allowMacros == true){
-            
-            $R = array();
-            
-            // Show errors
-            if(isset($showErrors) && $showErrors == true){
-                    $debug = "";
-                    foreach($this->debugger as $dV)
-                        $debug .= "\t{$dV}\n";
-
-                    $R = array(
-                        "{@__DEBUG:ERRORS__}"=> "<pre>\nSIMPLATE DEBUG ERRORS :\n{$debug}\n</pre>"
-                    );                
-            }
-
-            
-            /**
-             * Last going thru the templates to finish the work
-             */    
-            foreach($this->templates as $ttK=>$ttV){
-                
-                $this->templates[$ttK] = str_replace(array_keys($R),array_values($R),$this->templates[$ttK]);
-                
-               if(isset($stripComments) && $stripComments == true)
-                 $this->templates[$ttK] = $this->stripHTMLComments($this->templates[$ttK]);
-            
-            }
-
-        }
-        
-
-        
-            /**
-             * Last going thru the templates to finish the work
-             */    
-             if($this->definedLiteralsCount){
-                foreach($this->templates as $ttK=>$ttV)
-                    $this->templates[$ttK] = $this->parseLiterals($this->templates[$ttK]);
-             }
-            
         return $this;
     }
-    
-    
+
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-   
+
 }
