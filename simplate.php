@@ -7,13 +7,14 @@
  * 
  * @desc        Simplate is a simple php template engine to separate application 
  *                  logic and content from its presentation. 
+ *              Simplate is not a logic-less template but a less logic template that allow designer to work with the content.
  *              Simplate is designed to be Developers and Designers friendly.
  *              For developers it uses PHP 5.3 (or later) and can be extended. 
  *                  It assigns variables, can include other templates, create loop 
  *                  and nested loops, etc
  *              For designers, it has a very low learning curve because it uses HTML-like syntax 
  *                  for example {@VarName} to show a var that was assigned, 
- *                  <spl-if @Age.is(18)> to execute some script and more 
+ *                  <spl-if @Age.is(18)> for some conditional statement
  *                  All variables become pseudo object and can be extended by built-in filters 
  *                  or filters you created yourself like {@VarName.toUpper()} or can be chained down like
  *                  {@VarName.replace(.com,.net).toUpper().truncate(15)} or in a <spl-if> statement like <spl-if @Text.length().gt(4)>
@@ -21,15 +22,15 @@
  * @link        http://github.com/mardix/Simplate
  * @github      http://mardix.github.com
  * @twitter     @mardix
- * @license     LGPL
+ * @license     MIT
  * @copyright   Copyright (c) 2011 - Mardix
  * @since       1.x May 1 2011,
- *              2.0 Mar 1 2012
+ *              2.0 May 1 2012
  * 
  * @required    PHP 5.3 or later
  * 
  * @version     2.0
- * @LastUpdate  Mar 1 2012
+ * @LastUpdate  May 1 2012
  *              - Major update. Will break some 1.x features
  *              - All variables are called by @Var, @:Var or @#Var, either in {} or <spl-tag>
  *              - <spl-each> can be nested for loop
@@ -38,6 +39,7 @@
  *              - <spl-if> condition can be placed inside of <spl-each>
  *              - new template filter: .calculate() to do some basic math operation. i.e {@Number.calculate(*3,+2,-1,/2.5)}
  *              - new test method: .in() to evaluate if value is in the set, ie: <spl-if @City.in(Charlotte,Atlanta,Greenville)
+ *              - new tag <spl-ns> to set variables in namespace
  *              - no longer contains macro. Macros are replaced by CMD. 
  *              - setLiteral has been changed to toRaw(), <spl-raw> 
  *              - changed stripComments to stripHTMLComments
@@ -45,7 +47,8 @@
  *              - Refactoring
  *                        
  * 
- * @NowPlaying  "Amen" - Pusha T feat Kanye West & Young Jeezy 
+ * @NowPlaying  "Cashin Out" - Cash Out 
+ *              "At the same damn time" - Future
  * 
  * -----------------------------------------------------------------------------
  *   
@@ -63,6 +66,7 @@
  *      {@Varname.toUpper()}    : Will uppercase the variable
  *      {@Varname.replace(www,ZZZ)} : Replace www by ZZZ in the VarName 
  *      {@Varname.replace(www,zZz).toUpper()} : Chain
+ *      {@Namespace::VarName} to get a variable from namespace
  * 
  *  
  *** SCRIPT TAGS: <spl-$intruction > execution block to test for if, elseif, else, each, include, literal
@@ -143,6 +147,19 @@
  *      <spl-each name="@Loop" >
  * 
  * 
+ * 
+ **** NAMESPACE
+ *     <spl-ns> 
+ *     By default all variables are globals except for loop. Sometimes you may want to reduce the visibility of variable and to prevent conflict with variable with the same name
+ *      you set your vars in a namespace and will be only accessed with the namespace.
+ * 
+ *     The simple way: {@PersonalInfo::Name}
+ *     For a group of 
+ *      <spl-ns name="PersonalInfo">
+ *          {@Name} {@LastName}
+ *      </spl-ns>
+ * 
+ * 
  **** ADVANCED
  * 
  *      TAGS with Attributes
@@ -159,7 +176,7 @@
  *         
  *         Built-in CMDs
  *          toJSON : <spl-cmd name="toJSON" value="eachName" /> to return an each variable name to JSON 
- *          debug : <spl-cmd name="debug" /> will display in the template page all errors encoutered
+ *          dumpUnassignedVars : <spl-cmd name="dumpUnassignedVars" /> will display in the template page all the vars that were not assigned
  *          dumpVars: <spl-cmd name="dumpVars" /> to dump all assigned vars or <spl-cmd name="dumpVars" value="eachName" /> to dump all the variables assigned to this value
  *          stripHTMLComments: <spl-cmd name="stripHTMLComments" /> will remove all html comments on the page. This can also be set by using $this->stripHTMLComments()
  * 
@@ -178,10 +195,14 @@
  * Below are the public methods to assign variables, loop over data, include template file etc...
  * 
  *      setDir($dirPath)                    : set the root dir
- *      assign($key,$value)                 : assign variables. Previously set var can be concat by prefixing the $keyName with a dot: $this->assign(".KeyName","Value")
+ *      assign($key,$value,$namespace)      : assign variables
+ *                                            1. Key, value -> $this->assign("KeyName","Value")
+ *                                            2. With Array -> $this->assign(array())
+ *                                            3. With namespace -> $this->assign("KeyName","Value","Namespace"), which can be access like: {@Namespace::KeyName}
+ *                                            4. Array with namespace -> $this->assign(array(),"Namespace")  
  *      addTemplate($tplName,$filename)     : add a template file. Can be called in the template: <spl-include src="@TemplateName" />
  *      addInlineTemplate($tplName,$Content): To add a content as template.
- *      each($name,$ArrayData)              : Create a loop. If there is an array inside of ArrayData, it will create an inner loop  
+ *      each($name,$ArrayData)              : Create a loop. If there is an array inside of ArrayData, it will create an inner loop.  <spl-each>
  *      render($tplName)                    : To render the template as a string. Use print to print it on the screen
  *      setRaw($content)                    : To leave Simplate tag as is in the content
  *      saveTo($tplName,$filePath)          : To save the rendered content into a file
@@ -198,7 +219,10 @@
  * 
  **** Exception handling
  *    Upon an error, Simplate will throw an Excetion which gives details on the error
- * 
+ *
+ **** Common errors to prevent
+ *      1. when assigning variables, and all keys,  must start with Uppercase and only letters
+ *      2. If a file doesn't exist, it will throw when rendering
  *  
  * Min Requirement: PHP 5.3 and up
  */
@@ -405,10 +429,14 @@ Class Simplate {
             "catchInner"=>"/<spl-each[^>]*>(?:(?:(?!<\/?spl-each).)*|(?R))?<\/spl-each>/si",
             
             "catchSingle"=>"/<spl-each\s+(.*?)>(.*?)<\/spl\-each>/si" // <spl-each name='@eachName'></spl-each>
-        )
+        ),
+        
+        /**
+         * Namespace <spl-ns name=""> 
+         */
+        "namespace"=>"/<spl\-ns\s+(.*?)\s*>(.*?)<\/spl\-ns>/si"
     );
  
-    
     /**
      * Save statically customed filters to be applied on variable
      * i.e: Simplate::setFilter("toUpper",function($n){ return strtoupper($n);});
@@ -476,7 +504,7 @@ Class Simplate {
     * To assign variables
     * @param mixed $keys - If it's a string, it will assign value to it. if a string, it must start with a letter and contain alphanum chars. Multi dim array, will map
     * @param String|Numeric $value - The value to assign to $keys
-    * @param bool $formatVar - if false it will leave the tag as is
+    * @param string $namespace - A namespace allow you to put variable into context, so it can only be accessed by the context
     * @return Simplate
     * 
     * @HTMLTAG:
@@ -487,14 +515,18 @@ Class Simplate {
     *           $this->assign(".KeyName","Value")
     *           Add a dot(.) in front of the key name to concat it to previously assign value. 
     */
-    public function assign($keys, $value="",$formatVar=true){
+    public function assign($keys, $value="",$namespace=""){
         
+        // Keys is array, mass assignment.
+        // If value is a string
         if(is_array($keys)){
-            foreach($keys as $tplK=>$tplV){
-                $this->assign($tplK,$tplV);
-            }
+            // Value is a namespace
+            $NS = ($value && is_string($value)) ? $value : "";
+            
+            foreach($keys as $tplK=>$tplV)
+                $this->assign($tplK,$tplV,$NS);
         }
-        
+
         else{
 
             /**
@@ -510,8 +542,9 @@ Class Simplate {
             $concatKey = preg_match("/^\./",$keys) ;
             if($concatKey)
                 $keys = preg_replace("/^\./","",$keys);
-            
-            $kName = ($formatVar) ? $this->formatVar($keys) : $keys;
+
+                
+            $kName = $this->formatVar($keys,$namespace);
             
             $this->Vars[$kName] = ($concatKey ? ($this->Vars[$kName]) : "").$value;
             
@@ -844,6 +877,19 @@ Class Simplate {
             },$this->iterators[$this->varName($eachKey)] ?: array());
     }    
     
+    
+    /**
+     * To reparse templates after the ttemplates have been parsed and ready for rendering
+     * @return Simplate 
+     */
+    public function reparse(){
+        
+        $this->templatesParsed = false;
+        
+        return
+            $this;
+        
+    }
 //------------------------------------------------------------------------------    
 //-- PROTECTED / PRIVATE METHODS -----------------------------------------------
 //------------------------------------------------------------------------------
@@ -858,13 +904,9 @@ Class Simplate {
        $this->parseAll();
        
             if(isset($this->templates[$templateKey])){
+
+                $content = $this->templates[$templateKey];
                 
-                /**
-                 * Everything is ready, parse the cmds from the template side
-                 */                
-                $content = $this->parseCmds($this->templates[$templateKey]);
-
-
                 /**
                  * Strip HTML Comments, if it was instructed from PHP
                  */
@@ -875,14 +917,19 @@ Class Simplate {
                  * Clear all unparsed iterators and unassigned vars
                  */
                 if($this->clearUnassigned)                
-                    $content = str_replace(array_values($this->definedIterations["_replacementKeys"]),array(""),preg_replace("/{@\w+}/i","",$content));
+                    $content = @str_replace(array_values($this->definedIterations["_replacementKeys"]),array(""),preg_replace("/{@\w+}/i","",$content));
 
                 /**
                  * Parse literals 
                  */
                 if($this->definedRawsCount)
                     $content = $this->parseRaws($content);
-
+                
+                /**
+                 * Everything is ready, parse the cmds from the template side
+                 */                
+                $content = $this->parseCmds($content);
+                
                 return $content;
             }
                    
@@ -960,7 +1007,10 @@ Class Simplate {
      * @param string $template - The content to parse the iterator through
      * @return string 
      */
+        
     private function defineIterators($template){
+
+        
         // Cactch all each
         $regexpP = $this->REGEXP["each"]["catchAll"];
         // Call all inner each
@@ -1272,8 +1322,17 @@ Class Simplate {
      * @return string 
      */
     private function parseTemplate($template,Array $Scope = array()) {
-
+        
+        /**
+         * Make sure raw data stay as is 
+         */
         $template = $this->defineraws($template);
+        
+        /**
+         * Parse namespace
+         */
+        $template = $this->parseNamespace($template);
+        
         
         /**
          * Parse the condition statements
@@ -1319,7 +1378,46 @@ Class Simplate {
            
     } 
 
+    
+    /**
+     * Parse namespace by substituting normal var name, {@MyVar} to {@Namespace::MyVar} 
+     * @param string $template
+     * @return string 
+     * 
+     * ie:
+     * 
+     *  <spl-ns name="MyNS">
+     *      {@Name} is in the {@Location}
+     *  </spl-ns>
+     * 
+     *  return
+     * 
+     *      {@MyNS::Name} in the {@MyNS::Location}
+     */
+    private function parseNamespace($template){
         
+         if(preg_match_all($this->REGEXP["namespace"],$template,$cmds)){
+
+            foreach($cmds[1] as $i=>$expression){
+
+                $attributes = getAttributes($expression);
+
+                $namespace = $attributes["name"];
+
+                $repl = preg_replace("/<spl-(if|elseif)\s+@([\w]+)/","<spl-$1 @{$namespace }::$2",$cmds[2][$i]);
+                
+                $repl = preg_replace("/{@([\w]+)/","@{$namespace }::$1",$repl);
+                
+                $template = str_replace($cmds[0][$i],$repl,$template);
+
+            }
+
+        }
+    
+        return
+            $template;       
+        
+    }
         
     /**
      * To parse  condition statements in the template
@@ -1470,21 +1568,22 @@ Class Simplate {
 
                         
                             // debug, to debug errors
-                            case "debug":
+                            case "dumpunassignedvars":
 
                                 $debug = "";
                                if(preg_match_all("/{@\w+}/i",$template,$unassignedVars)){
+                                   
                                     foreach($unassignedVars[0] as $unV)
-                                        $this->__debugger(" {$unV} : unparsed variable in template key: {$ttK}"); 
+                                        $this->__debugger(" {$unV}"); 
                                     
                                     foreach($this->debugger as $dV)
                                         $debug .= "\t{$dV}\n";     
                                         
-                                    $replacement = "<pre>\nSimplate CMD: debug :\n{$debug}\n</pre>";     
+                                    $replacement = "<pre>\n".self::NAME." ".self::VERSION." Debugger : DumpUnassignedVars \n\n{$debug}\n</pre>";     
                                }
 
                                else{
-                                   $replacement = "<pre>\nSimplate CMD: debug : 0 \n</pre>";
+                                   $replacement = "<pre>\n".self::NAME." ".self::VERSION." Debugger : DumpUnassignedVars (0) \n\n</pre>";
                                }
    
                                                                  
@@ -1519,12 +1618,14 @@ Class Simplate {
                                      $dV = array_reduce($data,$varReduce);
                                 }
                                 else{
+                                   
                                     foreach($this->Vars as $vK=>$vV){
+                                        
                                         $dV .= "\t{$vK} : {$vV} \n";
                                     }
                                 }
                                 
-                                $replacement = "<pre>\nSimplate CMD: dumpVars : \n {$dV} \n</pre>";
+                                $replacement = "<pre>\n".self::NAME." ".self::VERSION." Debugger : DumpVars \n\n {$dV} \n</pre>";
                                 
                             break;
                         
@@ -1548,9 +1649,13 @@ Class Simplate {
     /**
      * To format variable with the proper opening and cclosed tags
      * @param string $varName - The variable name
+     * @param string $namespace - The namespace of this var
      * @return string 
      */
-    protected function formatVar($varName){
+    protected function formatVar($varName,$namespace=""){
+        if($namespace)
+            $varName = "{$namespace}::{$varName}";
+            
         return "{@{$varName}}";
     }
 
