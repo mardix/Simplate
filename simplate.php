@@ -205,7 +205,7 @@
  *      each($name,$ArrayData)              : Create a loop. If there is an array inside of ArrayData, it will create an inner loop.  <spl-each>
  *      render($tplName)                    : To render the template as a string. Use print to print it on the screen
  *      setRaw($content)                    : To leave Simplate tag as is in the content
- *      saveTo($tplName,$filePath)          : To save the rendered content into a file
+ *      saveTo($filePath,$tplName)          : To save the rendered content into a file
  *      stripHTMLComments(bool)             : To strip the HTML comments off the pages. Can be executed on the template side by calling <spl-cmd name="stripHTMLComments" />
  * 
  **** Remove / Clearing 
@@ -324,7 +324,11 @@ Class Simplate {
      */
     private $clearUnassigned = true;
         
-    
+    /**
+     * Hold the last template key.
+     * @var string
+     */
+    private $lastTemplateKey = "";
  
     /*
      * Most hard core regexp used. 
@@ -540,10 +544,10 @@ Class Simplate {
              * Concat: $this->assign(".KeyName","Value")
              */
             $concatKey = preg_match("/^\./",$keys) ;
+            
             if($concatKey)
                 $keys = preg_replace("/^\./","",$keys);
 
-                
             $kName = $this->formatVar($keys,$namespace);
             
             $this->Vars[$kName] = ($concatKey ? ($this->Vars[$kName]) : "").$value;
@@ -565,6 +569,16 @@ Class Simplate {
      *      <spl-include src="@KEY" />
      */
     public function addTemplate($key,$file,$absolutePath=false){
+
+        /**
+        * Invalid variable name
+        */
+        if(!preg_match($this->REGEXP["vars"],$key))
+            throw new \Exception("Simplate Exception in ".__METHOD__." - Invalid template key name: '$key'. Key name must start with a letter. First letter must be capitalized. The rest of the var may contain alpha numeric and underscore ");
+
+           
+        $this->lastTemplateKey = $key;
+        
         $this->templateFiles[$key] = array(
             "src"=>$file,
             "absolutePath"=>$absolutePath,
@@ -587,6 +601,13 @@ Class Simplate {
      */
     public function addInlineTemplate($key,$Content){
 
+        /**
+        * Invalid variable name
+        */
+        if(!preg_match($this->REGEXP["vars"],$key))
+            throw new \Exception("Simplate Exception in ".__METHOD__." - Invalid template key name: '$key'. Key name must start with a letter. First letter must be capitalized. The rest of the var may contain alpha numeric and underscore ");
+
+        
         $this->templateStrings[$key] = $Content;
         
         return $this;
@@ -615,7 +636,11 @@ Class Simplate {
      * @param String - The key of the template to render
      * @return String - The content to be rendered 
      */
-    public function render($templateKey){
+    public function render($templateKey = null){
+        
+        if(!$templateKey)
+            $templateKey = $this->lastTemplateKey;
+        
         return
             $this->getContent($templateKey);
     }
@@ -624,13 +649,13 @@ Class Simplate {
     
     /**
      * To save the template to file
+     * @param string $filename - The file to save the template to 
      * @param type $templateKey - The key to render
-     * @param string $filename - The file to save the template to
      * @return bool
      */
-    public function saveTo($templateKey,$fileName){
+    public function saveTo($fileName,$templateKey = ""){
         
-        $content = $this->getContent($templateKey);
+        $content = $this->getContent($templateKey ?: $this->lastTemplateKey);
         
         if(!file_put_contents($fileName,$content)) 
            throw new Exception("Simplate Exception in ".__METHOD__." - Unable to save template key '{$templateKey}' to: {$fileName}");
@@ -1653,8 +1678,16 @@ Class Simplate {
      * @return string 
      */
     protected function formatVar($varName,$namespace=""){
-        if($namespace)
+        
+        if($namespace){
+            /**
+            * Invalid variable name
+            */
+            if(!preg_match($this->REGEXP["vars"],$namespace))
+                throw new \Exception("Simplate Exception in ".__METHOD__." - Invalid Namespace name: '$namespace'. Namespace name must start with a letter. First letter must be capitalized. The rest of the var may contain alpha numeric and underscore ");
+            
             $varName = "{$namespace}::{$varName}";
+        }
             
         return "{@{$varName}}";
     }
